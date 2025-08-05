@@ -4,10 +4,10 @@ import { SidebarComponent } from './sidebar/sidebar.component';
 import { WijmoGridComponent } from './wijmo-grid/wijmo-grid.component';
 
 export const routes: Routes = [
-    {
+  {
     path: '',
     redirectTo: '/rp',
-    pathMatch: 'full'
+    pathMatch: 'full',
   },
   {
     path: 'rp',
@@ -20,24 +20,24 @@ export const routes: Routes = [
       {
         path: 'sidebar/:operationUnit/:routeType/:dayOfWeek',
         component: SidebarComponent,
-        outlet: 'sidebar'
+        outlet: 'sidebar',
       },
       {
-        path: 'mapgrid/:view/:dayOfWeek/:route1/:route2',
+        path: 'mapgrid/:view/:dayOfWeek/:routes',
         component: WijmoGridComponent,
-        outlet: 'mapgrid'
+        outlet: 'mapgrid',
       },
       // Add more named outlets as needed (e.g., for map)
-    ]
+    ],
   },
   {
     path: 'sp',
     // same setup for scenario planner
-    children: []
+    children: [],
   },
   {
     path: 'mp',
     // same setup for monthly planner
-    children: []
-  }
+    children: [],
+  },
 ];

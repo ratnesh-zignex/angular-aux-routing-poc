@@ -1,11 +1,9 @@
-<div>
-  <h4>Grid for {{params.dayOfWeek}} ({{params.route1}}, {{params.route2}})</h4>
-  <table>
-    <tr><th>Route</th><th>Stop</th><th>Passengers</th></tr>
-    <tr *ngFor="let row of gridData">
-      <td>{{row.route}}</td>
-      <td>{{row.stop}}</td>
-      <td>{{row.passengers}}</td>
-    </tr>
-  </table>
-</div>
+<wj-flex-grid
+  [itemsSource]="gridData"
+  [autoGenerateColumns]="false"
+  style="height: 180px; width: 100%" 
+>
+  <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
+  <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
+  <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
+</wj-flex-grid>

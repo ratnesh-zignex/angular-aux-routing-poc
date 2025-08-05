@@ -1,8 +1,1 @@
-<div id="olmap" style="width:100%; height:300px;">
-  <ng-container *ngIf="points.length; else emptyMap">
-    <span *ngFor="let pt of points" style="color: red;">● {{pt.route}} ({{pt.lat}}, {{pt.lng}})</span>
-  </ng-container>
-  <ng-template #emptyMap>
-    <span>No data loaded yet.</span>
-  </ng-template>
-</div>
+<div id="olmap" style="width:100%; height:80vh;"></div>

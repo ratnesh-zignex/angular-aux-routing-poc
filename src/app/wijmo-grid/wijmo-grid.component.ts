@@ -1,38 +1,32 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-
+import { WjGridModule } from '@grapecity/wijmo.angular2.grid';
 @Component({
   selector: 'app-wijmo-grid',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, WjGridModule],
   templateUrl: './wijmo-grid.component.html',
   styleUrl: './wijmo-grid.component.scss',
 })
 export class WijmoGridComponent {
-  params: any = {};
   gridData: any[] = [];
+  columns: any[] = [
+    { binding: 'route', header: 'Route' },
+    { binding: 'stop', header: 'Stop' },
+    { binding: 'passengers', header: 'Passengers' },
+  ];
 
   constructor(private route: ActivatedRoute) {
     this.route.params.subscribe((params) => {
-      this.params = params;
-      this.loadData(params);
+      // Demo: create rows for each selected route
+      const routes = params['routes'] ? params['routes'].split(','): [];
+      this.gridData = routes.map((route: string) => ({
+        route,
+        stop: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
+        passengers: Math.floor(Math.random() * 50),
+      }));
+      console.log(this.gridData);
     });
-  }
-
-  loadData(params: any) {
-    // Dummy data for selected day/routes
-    this.gridData = [
-      {
-        route: params.route1,
-        stop: 'A',
-        passengers: Math.floor(Math.random() * 50),
-      },
-      {
-        route: params.route2,
-        stop: 'B',
-        passengers: Math.floor(Math.random() * 50),
-      },
-    ];
   }
 }

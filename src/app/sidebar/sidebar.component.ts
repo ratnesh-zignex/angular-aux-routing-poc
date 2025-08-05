@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule, NgModel, NgModelGroup } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DataSyncService } from '../data-sync.service';
 
 @Component({
@@ -33,11 +33,32 @@ export class SidebarComponent {
   appName = 'Route Planner';
   primaryRoute: string = '';
 
-  constructor(private router: Router, private dataSync: DataSyncService) {}
+  constructor(
+    private router: Router,
+    private dataSync: DataSyncService,
+    private route: ActivatedRoute
+  ) {
+    this.route.params.subscribe((params) => {
+      // This will fire when browser navigation changes params
+      this.selectedOperationUnit = params['operationUnit'] || 'Comm';
+      this.selectedRouteType = params['routeType'] || 'FL';
+      this.selectedDayOfWeek = params['dayOfWeek'] || 'Monday';
+
+      // Update selectedRoutes for the new day
+      this.updateRoutesForDay(this.selectedDayOfWeek);
+      this.updateAppName();
+      console.log(
+        this.selectedOperationUnit,
+        this.selectedRouteType,
+        this.selectedDayOfWeek
+      );
+    });
+  }
 
   ngOnInit() {
+    console.log('on initi sidebar');
     this.selectedRoutes = this.routesByDay[this.selectedDayOfWeek];
-    this.updateAppName();
+    this.updateRoutesForDay(this.selectedDayOfWeek);
   }
 
   onOperationUnitChange(op: string) {
@@ -51,6 +72,7 @@ export class SidebarComponent {
   onDayOfWeekChange(day: string) {
     this.selectedDayOfWeek = day;
     this.selectedRoutes = this.routesByDay[day] || [];
+    this.updateRoutesForDay(day);
     this.navigateSidebar();
   }
   onTabChange(tab: string) {
@@ -87,23 +109,45 @@ export class SidebarComponent {
   loadData() {
     console.log('in loade Data');
     // Pick 2 routes for demo
-    const r1 = this.selectedRoutes[0] || '1001';
-    const r2 = this.selectedRoutes[1] || '1002';
+    let points: any[] = [];
+    this.selectedRoutes.map((r, i) => {
+      points.push({
+        route: r,
+        lat: 40.7128 + i * 0.009,
+        lng: -74.006 + i * 0.009,
+        color: 'red',
+      });
+    });
     this.router.navigate(
       [
         this.primaryRoute,
         {
           outlets: {
-            mapgrid: ['mapgrid', 'daily', this.selectedDayOfWeek, r1, r2],
+            mapgrid: [
+              'mapgrid',
+              'daily',
+              this.selectedDayOfWeek,
+              this.selectedRoutes.join(','),
+            ],
           },
         },
       ],
       { relativeTo: undefined }
     );
-    const points = [
-      { route: '1001', lat: 40.7128, lng: -74.006, color: 'red' },
-      { route: '1002', lat: 40.7138, lng: -74.016, color: 'red' },
-    ];
     this.dataSync.setPoints(points);
+  }
+  updateRoutesForDay(day: string) {
+    this.selectedRoutes = this.routesByDay[day]
+      ? [...this.routesByDay[day]]
+      : [];
+  }
+  onRouteToggle(route: string, event: Event) {
+    const input = event.target as HTMLInputElement;
+    const isChecked = input?.checked;
+    if (isChecked) {
+      if (!this.selectedRoutes.includes(route)) this.selectedRoutes.push(route);
+    } else {
+      this.selectedRoutes = this.selectedRoutes.filter((r) => r !== route);
+    }
   }
 }

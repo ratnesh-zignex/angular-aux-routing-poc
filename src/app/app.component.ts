@@ -30,5 +30,21 @@ export class AppComponent implements OnInit {
         },
       ]);
     }
+    this.router.routerState.root.children.forEach((child) => {
+      child.children.forEach((outlet) => {
+        if (outlet.outlet === 'mapgrid') {
+          outlet.params.subscribe((params) => {
+            const routes = params['routes'] ? params['routes'].split(',') : [];
+            const day = params['dayOfWeek'];
+            this.mapPoints = routes.map((route: string, idx: number) => ({
+              route,
+              lat: 40.7128 + 0.01 * idx,
+              lng: -74.006 + 0.01 * idx,
+              color: 'red',
+            }));
+          });
+        }
+      });
+    });
   }
 }

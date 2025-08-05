@@ -28,8 +28,8 @@
   <div *ngIf="selectedTab === 'Route'">
     <label>Routes for {{selectedDayOfWeek}}:</label>
     <ul>
-      <li *ngFor="let route of selectedRoutes">
-        <input type="checkbox" [value]="route"/> {{route}}
+      <li *ngFor="let route of routesByDay[selectedDayOfWeek]">
+        <input type="checkbox" [checked]="selectedRoutes.includes(route)" (change)="onRouteToggle(route, $event)" /> {{route}}
       </li>
     </ul>
     <button (click)="loadData()">Load Data</button>
