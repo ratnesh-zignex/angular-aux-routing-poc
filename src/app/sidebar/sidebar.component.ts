@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule, NgModel, NgModelGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DataSyncService } from '../data-sync.service';
@@ -11,7 +11,7 @@ import { DataSyncService } from '../data-sync.service';
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   operationUnits = ['Comm', 'Ops', 'Tech'];
   routeTypes = ['FL', 'SL', 'EXP'];
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -38,13 +38,26 @@ export class SidebarComponent {
     private dataSync: DataSyncService,
     private route: ActivatedRoute
   ) {
+    // this.route.params.subscribe((params) => {
+    //   // This will fire when browser navigation changes params
+    //   this.selectedOperationUnit = params['operationUnit'] || 'Comm';
+    //   this.selectedRouteType = params['routeType'] || 'FL';
+    //   this.selectedDayOfWeek = params['dayOfWeek'] || 'Monday';
+    //   // Update selectedRoutes for the new day
+    //   this.updateRoutesForDay(this.selectedDayOfWeek);
+    //   this.updateAppName();
+    // });
+  }
+
+  ngOnInit() {
+    console.log('on initi sidebar');
+    this.selectedRoutes = this.routesByDay[this.selectedDayOfWeek];
+    this.updateRoutesForDay(this.selectedDayOfWeek);
     this.route.params.subscribe((params) => {
-      // This will fire when browser navigation changes params
+      console.log('paraams sidebar', params);
       this.selectedOperationUnit = params['operationUnit'] || 'Comm';
       this.selectedRouteType = params['routeType'] || 'FL';
       this.selectedDayOfWeek = params['dayOfWeek'] || 'Monday';
-
-      // Update selectedRoutes for the new day
       this.updateRoutesForDay(this.selectedDayOfWeek);
       this.updateAppName();
       console.log(
@@ -53,12 +66,6 @@ export class SidebarComponent {
         this.selectedDayOfWeek
       );
     });
-  }
-
-  ngOnInit() {
-    console.log('on initi sidebar');
-    this.selectedRoutes = this.routesByDay[this.selectedDayOfWeek];
-    this.updateRoutesForDay(this.selectedDayOfWeek);
   }
 
   onOperationUnitChange(op: string) {
@@ -89,6 +96,7 @@ export class SidebarComponent {
             this.selectedRouteType,
             this.selectedDayOfWeek,
           ],
+          mapgrid: 'mapgrid',
         },
       },
     ]);
@@ -118,22 +126,47 @@ export class SidebarComponent {
         color: 'red',
       });
     });
-    this.router.navigate(
-      [
-        this.primaryRoute,
-        {
-          outlets: {
-            mapgrid: [
-              'mapgrid',
-              'daily',
-              this.selectedDayOfWeek,
-              this.selectedRoutes.join(','),
-            ],
-          },
+    // Build sidebar params from current selections
+    const sidebarParams = [
+      'sidebar',
+      this.selectedOperationUnit,
+      this.selectedRouteType,
+      this.selectedDayOfWeek,
+    ];
+    // Build mapgrid params from current selections
+    const mapgridParams = [
+      'mapgrid',
+      'daily',
+      this.selectedDayOfWeek,
+      this.selectedRoutes.join(','),
+    ];
+
+    // Navigate with BOTH outlets set!
+    this.router.navigate([
+      '/rp',
+      {
+        outlets: {
+          sidebar: sidebarParams,
+          mapgrid: mapgridParams,
         },
-      ],
-      { relativeTo: undefined }
-    );
+      },
+    ]);
+    // this.router.navigate(
+    //   [
+    //     this.primaryRoute,
+    //     {
+    //       outlets: {
+    //         mapgrid: [
+    //           'mapgrid',
+    //           'daily',
+    //           this.selectedDayOfWeek,
+    //           this.selectedRoutes.join(','),
+    //         ],
+    //       },
+    //     },
+    //   ],
+    //   { relativeTo: undefined }
+    // );
     this.dataSync.setPoints(points);
   }
   updateRoutesForDay(day: string) {

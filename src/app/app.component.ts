@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { OpenlayerMapComponent } from './openlayer-map/openlayer-map.component';
 import { DataSyncService } from './data-sync.service';
 
@@ -11,7 +11,11 @@ import { DataSyncService } from './data-sync.service';
   styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit {
-  constructor(private router: Router, private dataSync: DataSyncService) {}
+  constructor(
+    private router: Router,
+    private dataSync: DataSyncService,
+    private route: ActivatedRoute
+  ) {}
   mapPoints: any[] = [];
 
   ngOnInit() {
@@ -30,21 +34,5 @@ export class AppComponent implements OnInit {
         },
       ]);
     }
-    this.router.routerState.root.children.forEach((child) => {
-      child.children.forEach((outlet) => {
-        if (outlet.outlet === 'mapgrid') {
-          outlet.params.subscribe((params) => {
-            const routes = params['routes'] ? params['routes'].split(',') : [];
-            const day = params['dayOfWeek'];
-            this.mapPoints = routes.map((route: string, idx: number) => ({
-              route,
-              lat: 40.7128 + 0.01 * idx,
-              lng: -74.006 + 0.01 * idx,
-              color: 'red',
-            }));
-          });
-        }
-      });
-    });
   }
 }

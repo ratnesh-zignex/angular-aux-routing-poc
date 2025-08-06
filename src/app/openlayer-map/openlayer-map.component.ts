@@ -35,7 +35,7 @@ export class OpenlayerMapComponent implements AfterViewInit, OnChanges {
 
   constructor(private el: ElementRef, private route: ActivatedRoute) {
     this.route.params.subscribe((params) => {
-      console.log(params);
+      console.log('oepn lauyer', params);
       const routes = params['routes'] ? params['routes'].split(',') : [];
       this.points = routes.map((route: string, idx: number) => ({
         route,
@@ -71,13 +71,15 @@ export class OpenlayerMapComponent implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
+    console.log(changes, this.map);
     if (changes['points'] && this.map) {
+      this.points = changes['points'].currentValue;
       this.updateMapFeatures();
     }
   }
 
   updateMapFeatures() {
-    console.log('update map feature');
+    console.log('update map feature', this.points);
     const source = this.vectorLayer?.getSource();
     source?.clear();
     this.points.forEach((pt) => {
