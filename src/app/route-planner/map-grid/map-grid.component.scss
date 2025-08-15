@@ -1,0 +1,25 @@
+   .map-grid-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    
+    .grid-section {
+      height: 20%;
+      border-bottom: 1px solid #ddd;
+      transition: height 0.3s ease;
+    }
+    
+    .grid-section.hidden {
+      height: 0;
+      overflow: hidden;
+    }
+    
+    .map-section {
+      height: 50%;
+      transition: height 0.3s ease;
+    }
+    
+    .map-section.full-height {
+      height: 100%;
+    }

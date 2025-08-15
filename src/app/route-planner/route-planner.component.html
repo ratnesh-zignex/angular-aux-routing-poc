@@ -1,0 +1,27 @@
+<!-- <div style="display: flex; height: 100%;">
+  <aside style="width: 260px; height: 100%; border-right: 1px solid #ddd;">
+    <router-outlet name="sidebar"></router-outlet>
+  </aside>
+  <main style="flex: 1;  height: 100%; display: flex; flex-direction: column;">
+    <section style="flex: 3;">
+      <app-map [points]="mapPoints"></app-map>
+    </section>
+    <section style="flex: 1;">
+      <router-outlet name="mapgrid"></router-outlet>
+    </section>
+  </main>
+</div> -->
+
+<div class="route-planner-container">
+  <!-- Sidebar Outlet -->
+  <div class="sidebar-container" >
+    <router-outlet name="sidebar"></router-outlet>
+  </div>
+  
+  <!-- Main Content Area -->
+  <div class="main-content">
+    <div class="content-area">
+      <router-outlet name="mapgrid"></router-outlet>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+<div>
+  <h2>{{appName}}</h2>
+  <div>
+    <label>Operation Unit:</label>
+    <select [(ngModel)]="navService.selectedOperationUnit" (ngModelChange)="onOperationUnitChange($event)">
+      <option *ngFor="let op of operationUnits" [value]="op">{{op}}</option>
+    </select>
+  </div>
+  <div>
+    <label>Route Type:</label>
+    <select [(ngModel)]="navService.selectedRouteType" (ngModelChange)="onRouteTypeChange($event)">
+      <option *ngFor="let rt of routeTypes" [value]="rt">{{rt}}</option>
+    </select>
+  </div>
+  <div>
+    <label>Day of Week:</label>
+    <select [(ngModel)]="navService.selectedDayOfWeek" (ngModelChange)="onDayOfWeekChange($event)">
+      <option *ngFor="let day of daysOfWeek" [value]="day">{{day}}</option>
+    </select>
+  </div>
+  <router-outlet></router-outlet>
+</div>

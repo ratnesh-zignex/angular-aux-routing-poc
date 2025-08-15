@@ -1,0 +1,10 @@
+<p>monthly-planner works!</p>
+<wj-flex-grid
+  [itemsSource]="gridData"
+  [autoGenerateColumns]="false"
+  style="height: 180px; width: 100%" 
+>
+  <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
+  <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
+  <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
+</wj-flex-grid>

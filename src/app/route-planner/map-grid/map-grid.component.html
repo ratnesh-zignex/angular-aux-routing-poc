@@ -1,0 +1,10 @@
+<div class="map-grid-container">
+  <!-- Map Section -->
+  <div class="map-section" [class.full-height]="showMapOnly">
+    <router-outlet name="map"></router-outlet>
+  </div>
+    <!-- Grid Section -->
+  <div class="grid-section" [class.hidden]="showMapOnly">
+    <router-outlet name="grid"></router-outlet>
+  </div>
+</div>

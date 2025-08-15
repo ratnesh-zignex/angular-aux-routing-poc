@@ -1,0 +1,50 @@
+<div class="dp-container">
+  <!-- RP-specific Tab Navigation -->
+  <div class="tab-navigation">
+    <button
+      *ngFor="let tab of rpTabs"
+      [class.active]="currentState.tabName === tab.value"
+      (click)="onTabChange(tab.value)"
+    >
+      {{ tab.label }}
+    </button>
+  </div>
+
+  <!-- Tab Content for Routes -->
+  <div *ngIf="currentState.tabName === 'routes'" class="tab-content">
+    <div class="route-controls">
+      <button (click)="loadData()" class="btn-primary">Load Data</button>
+      <button (click)="selectAll()" class="btn-secondary">Select All</button>
+      <button (click)="clearAll()" class="btn-secondary">Clear All</button>
+    </div>
+
+    <div class="routes">
+      <div *ngFor="let route of getAvailableRoutes()" class="route-item">
+        <input
+          type="checkbox"
+          [checked]="currentState.selectedRoutes.includes(route)"
+          (change)="onRouteToggle(route, $event)"
+        />
+        <span>{{ route }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Content for Facility -->
+  <div *ngIf="currentState.tabName === 'facility'" class="tab-content">
+    <div class="facility-content">
+      <h4>Facility Management</h4>
+      <p>RP Facility content goes here</p>
+      <!-- Add your RP facility-specific content -->
+    </div>
+  </div>
+
+  <!-- Tab Content for Ungeocoded -->
+  <div *ngIf="currentState.tabName === 'ungeocoded'" class="tab-content">
+    <div class="ungeocoded-content">
+      <h4>Ungeocoded Customers</h4>
+      <p>RP Ungeocoded customers content goes here</p>
+      <!-- Add your RP ungeocoded-specific content -->
+    </div>
+  </div>
+</div>

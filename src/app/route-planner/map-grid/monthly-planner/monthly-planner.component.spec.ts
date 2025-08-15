@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { WijmoGridComponent } from './wijmo-grid.component';
+import { MonthlyPlannerComponent } from './monthly-planner.component';
 
-describe('WijmoGridComponent', () => {
-  let component: WijmoGridComponent;
-  let fixture: ComponentFixture<WijmoGridComponent>;
+describe('MonthlyPlannerComponent', () => {
+  let component: MonthlyPlannerComponent;
+  let fixture: ComponentFixture<MonthlyPlannerComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WijmoGridComponent]
+      imports: [MonthlyPlannerComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(WijmoGridComponent);
+    fixture = TestBed.createComponent(MonthlyPlannerComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { DataSyncService } from './data-sync.service';
+import { NavigationService } from './navigation.service';
 
-describe('DataSyncService', () => {
-  let service: DataSyncService;
+describe('NavigationService', () => {
+  let service: NavigationService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(DataSyncService);
+    service = TestBed.inject(NavigationService);
   });
 
   it('should be created', () => {

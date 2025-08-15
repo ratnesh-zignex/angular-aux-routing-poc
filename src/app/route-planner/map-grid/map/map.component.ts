@@ -21,28 +21,31 @@ import VectorSource from 'ol/source/Vector';
 import CircleStyle from 'ol/style/Circle';
 import Fill from 'ol/style/Fill';
 import Style from 'ol/style/Style';
+import { NavigationService } from '../../shared/services/navigation.service';
 @Component({
-  selector: 'app-openlayer-map',
+  selector: 'app-map',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './openlayer-map.component.html',
-  styleUrl: './openlayer-map.component.scss',
+  templateUrl: './map.component.html',
+  styleUrl: './map.component.scss',
 })
-export class OpenlayerMapComponent implements AfterViewInit, OnChanges {
-  @Input() points: any[] = [];
+export class MapComponent implements AfterViewInit, OnInit {
+  points: any[] = [];
   private map!: Map;
   private vectorLayer!: VectorLayer;
-
-  constructor(private el: ElementRef, private route: ActivatedRoute) {
+  mapId: string = 'map1'; // Default map ID, can be changed based on route params
+  constructor(
+    private el: ElementRef,
+    private route: ActivatedRoute,
+    public navBar: NavigationService
+  ) {
     this.route.params.subscribe((params) => {
-      console.log('oepn lauyer', params);
-      const routes = params['routes'] ? params['routes'].split(',') : [];
-      this.points = routes.map((route: string, idx: number) => ({
-        route,
-        lat: 40.7128 + 0.01 * idx,
-        lng: -74.006 + 0.01 * idx,
-        color: 'red',
-      }));
+      this.mapId = params['mapId'] || 'map1'; // Get map ID from URL or use default
+      console.log('Map component route params:', params);
+    });
+    this.navBar.mapEventSubject.subscribe((event) => {
+      console.log('Map event received:', event);
+      this.points = event.points || [];
       this.updateMapFeatures();
     });
   }
@@ -70,13 +73,13 @@ export class OpenlayerMapComponent implements AfterViewInit, OnChanges {
     this.updateMapFeatures();
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    console.log(changes, this.map);
-    if (changes['points'] && this.map) {
-      this.points = changes['points'].currentValue;
-      this.updateMapFeatures();
-    }
-  }
+  // ngOnChanges(changes: SimpleChanges) {
+  //   console.log(changes, this.map);
+  //   if (changes['points'] && this.map) {
+  //     this.points = changes['points'].currentValue;
+  //     this.updateMapFeatures();
+  //   }
+  // }
 
   updateMapFeatures() {
     console.log('update map feature', this.points);

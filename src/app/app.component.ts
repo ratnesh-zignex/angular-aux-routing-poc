@@ -1,38 +1,32 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
-import { OpenlayerMapComponent } from './openlayer-map/openlayer-map.component';
-import { DataSyncService } from './data-sync.service';
+import {
+  ActivatedRoute,
+  NavigationEnd,
+  Router,
+  RouterOutlet,
+} from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, OpenlayerMapComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit {
-  constructor(
-    private router: Router,
-    private dataSync: DataSyncService,
-    private route: ActivatedRoute
-  ) {}
-  mapPoints: any[] = [];
+  constructor(private router: Router) {}
 
   ngOnInit() {
-    // Only navig
-    this.dataSync.points$.subscribe((points) => {
-      this.mapPoints = points;
+    this.router.events.subscribe((event) => {
+      console.log(event);
+      if (event instanceof NavigationEnd) {
+        console.log('Navigated to:', event.url);
+      }
     });
-    // Only navigate to sidebar if not already there
-    if (!window.location.href.includes('(sidebar:')) {
-      this.router.navigate([
-        '/rp',
-        {
-          outlets: {
-            sidebar: ['sidebar', 'Comm', 'FL', 'Monday'],
-          },
-        },
-      ]);
+    // Navigate to default route if no specific route is provided
+    if (this.router.url === '/') {
+      console.log('navigation RP');
+      this.router.navigate(['/rp']);
     }
   }
 }
