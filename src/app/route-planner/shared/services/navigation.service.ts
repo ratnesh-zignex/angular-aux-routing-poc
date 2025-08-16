@@ -1,17 +1,7 @@
 import { Injectable } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, UrlTree } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 
-// export interface NavigationState {
-//   view: string;
-//   plannerType: 'rp' | 'mp' | 'sp';
-//   operationUnit: string;
-//   routeType: string;
-//   dayOfWeek: string; // dayOfWeek or month
-//   tabName: string;
-//   selectedRoutes: string[];
-//   mapId: string;
-// }
 export interface SidebarState {
   plannerType: 'rp' | 'mp' | 'sp';
   operationUnit: string;
@@ -53,7 +43,7 @@ export class NavigationService {
 
   private mapGridState = new BehaviorSubject<MapGridState>({
     view: 'daily',
-    dayOfWeek: 'Monday',
+    dayOfWeek: '',
     selectedRoutes: [],
     mapId: 'main',
   });
@@ -77,19 +67,14 @@ export class NavigationService {
   getCurrentMapGridState(): MapGridState {
     return this.mapGridState.value;
   }
-
-  // updateState(updates: Partial<NavigationState>) {
-  //   const currentState = this.getCurrentState();
-  //   const newState = { ...currentState, ...updates };
-  //   this.navigationState.next(newState);
-  //   this.navigate(newState);
-  // }
-  // Update only sidebar state (doesn't trigger map-grid navigation)
   updateSidebarState(updates: Partial<SidebarState>) {
     const currentState = this.getCurrentSidebarState();
     const newState = { ...currentState, ...updates };
     console.log('Updating sidebar state:', newState);
-    newState.selectedRoutes = [];
+    if (updates.dayOfWeek && updates.dayOfWeek !== currentState.dayOfWeek) {
+      newState.selectedRoutes = [];
+      this.selectedRoutes = [];
+    }
     this.sidebarState.next(newState);
     this.navigateSidebar(newState);
   }
@@ -100,117 +85,100 @@ export class NavigationService {
     this.mapGridState.next(newState);
     this.navigateMapGrid(newState);
   }
-  // Navigate both sidebar and map-grid (called when "Load Data" is clicked)
-  syncStatesAndNavigate() {
-    const sidebarState = this.getCurrentSidebarState();
-    const mapGridState = this.getCurrentMapGridState();
-
-    // Sync map-grid state with sidebar selections
-    const syncedMapGridState = {
-      ...mapGridState,
-      dayOfWeek: mapGridState.dayOfWeek,
-      selectedRoutes: this.selectedRoutes,
-    };
-
-    this.mapGridState.next(syncedMapGridState);
-    this.navigateFull(sidebarState, syncedMapGridState);
-  }
   private navigateSidebar(state: SidebarState) {
-    const currentUrl = this.router.url;
-    const sidebarPath = `sidebar/${state.operationUnit}/${state.routeType}/${state.dayOfWeek}/${state.tabName}`;
-     const mapGridPath = `mapgrid/${this.mapGridState.value.view}`;
-         const routesParam =
-           this.mapGridState.value.selectedRoutes.length > 0
-             ? this.mapGridState.value.selectedRoutes.join(',')
-             : '';
-     const gridPath = `grid/${this.mapGridState.value.dayOfWeek}/${routesParam}`;
-     const mapPath = `map/${this.mapGridState.value.mapId}`;
-
-     this.router.navigate([
-       `/${state.plannerType}`,
-       {
-         outlets: {
-           sidebar: sidebarPath.split('/'),
-           mapgrid: [
-             ...mapGridPath.split('/'),
-             {
-               outlets: {
-                 grid: gridPath.split('/'),
-                 map: mapPath.split('/'),
-               },
-             },
-           ],
-         },
-       },
-     ]);
-// console.log(this.extractCurrentMapGridFromUrl(currentUrl));
-console.log(sidebarPath.split('/'));
-    // // Only update sidebar outlet
-    // this.router.navigate([
-    //   `/${state.plannerType}`,
-    //   {
-    //     outlets: {
-    //       sidebar: sidebarPath.split('/'),
-    //       // Keep existing mapgrid outlet unchanged
-    //       mapgrid: this.extractCurrentMapGridFromUrl(currentUrl),
-    //     },
-    //   },
-    // ]);
+    const currentUrl = this.router.parseUrl(this.router.url);
+    const mapGridState = this.getCurrentMapGridState();
+    console.log(mapGridState);
+    // const currentMapGridSegment = this.extractCurrentMapGridSegment(currentUrl);
+    console.log(currentUrl);
+    const sidebarPath = [
+      'sidebar',
+      state.operationUnit,
+      state.routeType,
+      state.dayOfWeek,
+      state.tabName,
+    ];
+    const routesParam =
+      mapGridState.selectedRoutes.length > 0
+        ? mapGridState.selectedRoutes.join(',')
+        : '';
+    const mapgridPath = [
+      'mapgrid',
+      mapGridState.view,
+      {
+        outlets: {
+          grid: ['grid', mapGridState.dayOfWeek, routesParam],
+          map: ['map', mapGridState.mapId],
+        },
+      },
+    ];
+    this.router.navigate([
+      `/${state.plannerType}`,
+      {
+        outlets: {
+          sidebar: sidebarPath,
+          mapgrid: mapgridPath,
+        },
+      },
+    ]);
+    console.log(sidebarPath, mapgridPath);
   }
   private navigateMapGrid(state: MapGridState) {
     const currentUrl = this.router.url;
+    console.log(this.extractCurrentSidebarFromUrl(currentUrl));
     const routesParam =
       state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
-    const mapGridPath = `mapgrid/${state.view}`;
-    console.log('grid',state.dayOfWeek, routesParam);
-    const gridPath = state.dayOfWeek
-      ? `grid/${state.dayOfWeek}/${routesParam}`
-      : 'grid';
-      //  `grid/${state.dayOfWeek}/${routesParam}`;
-    const mapPath = `map/${state.mapId}`;
-console.log('Navigating map grid with state:', gridPath);
+    const mapgridPath = [
+      'mapgrid',
+      state.view,
+      {
+        outlets: {
+          grid: ['grid', state.dayOfWeek, routesParam],
+          map: ['map', state.mapId],
+        },
+      },
+    ];
     this.router.navigate([
       this.primaryRoute,
       {
         outlets: {
           sidebar: this.extractCurrentSidebarFromUrl(currentUrl),
-          mapgrid: [
-            ...mapGridPath.split('/'),
-            {
-              outlets: {
-                grid: gridPath.split('/'),
-                map: mapPath.split('/'),
-              },
-            },
-          ],
+          mapgrid: mapgridPath,
         },
       },
     ]);
+    console.log(this.extractCurrentSidebarFromUrl(currentUrl), mapgridPath);
+
   }
   private navigateFull(sidebarState: SidebarState, mapGridState: MapGridState) {
     const routesParam =
       mapGridState.selectedRoutes.length > 0
         ? mapGridState.selectedRoutes.join(',')
         : '';
-    const sidebarPath = `sidebar/${sidebarState.operationUnit}/${sidebarState.routeType}/${sidebarState.dayOfWeek}/${sidebarState.tabName}`;
-    const mapGridPath = `mapgrid/${mapGridState.view}`;
-    const gridPath = `grid/${mapGridState.dayOfWeek}/${routesParam}`;
-    const mapPath = `map/${mapGridState.mapId}`;
-
+    const sidebarPath = [
+      'sidebar',
+      sidebarState.operationUnit,
+      sidebarState.routeType,
+      sidebarState.dayOfWeek,
+      sidebarState.tabName,
+    ];
+    const mapgridPath = [
+      'mapgrid',
+      mapGridState.view,
+      {
+        outlets: {
+          grid: ['grid', mapGridState.dayOfWeek, routesParam],
+          map: ['map', mapGridState.mapId],
+        },
+      },
+    ];
+    console.log('mapGird path', mapgridPath);
     this.router.navigate([
       `/${sidebarState.plannerType}`,
       {
         outlets: {
-          sidebar: sidebarPath.split('/'),
-          mapgrid: [
-            ...mapGridPath.split('/'),
-            {
-              outlets: {
-                grid: gridPath.split('/'),
-                map: mapPath.split('/'),
-              },
-            },
-          ],
+          sidebar: sidebarPath,
+          mapgrid: mapgridPath,
         },
       },
     ]);
@@ -219,44 +187,8 @@ console.log('Navigating map grid with state:', gridPath);
   private extractCurrentSidebarFromUrl(url: string): string[] {
     // Extract current sidebar path from URL
     const sidebarMatch = url.match(/sidebar:([^)]+)/);
-    return sidebarMatch
-      ? sidebarMatch[1].split('/')
-      : ['sidebar', 'Comm', 'FL', 'Monday', 'routes'];
+    return sidebarMatch ? sidebarMatch[1].split('/') : [];
   }
-  // private extractCurrentMapGridFromUrl(url: string): string[] {
-  //   // Extract current mapgrid path from URL
-  //   const mapGridMatch = url.match(/mapgrid:([^)]+)/);
-  //   return mapGridMatch ? mapGridMatch[1].split('/') : ['mapgrid', 'daily'];
-  // }
-
-  // private navigate(state: NavigationState) {
-  //   const routesParam =
-  //     state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
-
-  //   const sidebarPath = `sidebar/${state.operationUnit}/${state.routeType}/${state.dayOfWeek}/${state.tabName}`;
-  //   const mapGridPath = `mapgrid/${state.view || 'daily'}`;
-  //   const gridPath = `grid/${state.dayOfWeek}/${routesParam}`;
-  //   const mapPath = `map/${state.mapId}`;
-
-  //   // Build the complete navigation with all outlets
-  //   this.router.navigate([
-  //     `/${state.plannerType}`,
-  //     {
-  //       outlets: {
-  //         sidebar: sidebarPath.split('/'),
-  //         mapgrid: [
-  //           ...mapGridPath.split('/'),
-  //           {
-  //             outlets: {
-  //               grid: gridPath.split('/'),
-  //               map: mapPath.split('/'),
-  //             },
-  //           },
-  //         ],
-  //       },
-  //     },
-  //   ]);
-  // }
 
   // Helper methods for common navigation patterns
   changePlannerType(type: 'rp' | 'mp' | 'sp') {
@@ -290,7 +222,30 @@ console.log('Navigating map grid with state:', gridPath);
   }
 
   loadData() {
-    this.updateMapGridState({dayOfWeek: this.selectedDayOfWeek, selectedRoutes: this.selectedRoutes});
+    this.updateMapGridState({
+      dayOfWeek: this.selectedDayOfWeek,
+      selectedRoutes: this.selectedRoutes,
+    });
     // this.syncStatesAndNavigate();
+  }
+  navigateToDefault() {
+    // Get current states from NavigationService (which might have been initialized from URL)
+    // Define default states if current ones are not fully populated or if we want to enforce defaults
+    const defaultSidebarState: SidebarState = {
+      plannerType: 'rp',
+      operationUnit: 'Comm',
+      routeType: 'FL',
+      dayOfWeek: 'Monday',
+      tabName: 'routes',
+      selectedRoutes: [], // Sidebar's selected routes (checkboxes)
+    };
+    const defaultMapGridState: MapGridState = {
+      view: 'daily',
+      dayOfWeek: '', // Map/Grid's dayOfWeek
+      selectedRoutes: [], // Map/Grid's loaded routes
+      mapId: 'main',
+    };
+    // This will trigger the navigateFull method in NavigationService
+    this.navigateFull(defaultSidebarState, defaultMapGridState);
   }
 }

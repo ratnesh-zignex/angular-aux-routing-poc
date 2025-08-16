@@ -9,8 +9,7 @@ import { MonthlyPlannerComponent } from './map-grid/monthly-planner/monthly-plan
 const routes: Routes = [
   {
     path: 'rp',
-    loadComponent: () =>
-      import('./route-planner.component').then((m) => m.RoutePlannerComponent),
+    component: RoutePlannerComponent,
     children: [
       {
         path: 'sidebar/:operationUnit/:routeType/:dayOfWeek',
@@ -22,13 +21,9 @@ const routes: Routes = [
         children: [
           {
             path: ':tabName',
-            component: DpComponent, // Rp Sidebar
-          },
-          {
-            path: '',
-            redirectTo: 'routes',
-            pathMatch: 'full',
-          },
+            loadComponent: () => 
+              import('./layout/sidebar/dp/dp.component').then((m) => m.DpComponent), // Rp Sidebar
+          }
         ],
       },
 
@@ -42,6 +37,14 @@ const routes: Routes = [
           ),
         children: [
           {
+            path: 'grid/:dayOfWeek/:routes',
+            outlet: 'grid',
+            loadComponent: () =>
+              import('./map-grid/planner/planner.component').then(
+                (m) => m.PlannerComponent
+              ),
+          },
+          {
             path: 'map/:mapId',
             outlet: 'map',
             loadComponent: () =>
@@ -50,7 +53,17 @@ const routes: Routes = [
               ),
           },
           {
-            path: 'grid/:dayOfWeek/:routes',
+            // ADD THIS: For when routes are empty
+            path: 'grid/:dayOfWeek', // Matches 'grid/Monday'
+            outlet: 'grid',
+            loadComponent: () =>
+              import('./map-grid/planner/planner.component').then(
+                (m) => m.PlannerComponent
+              ),
+          },
+          {
+            // ADD THIS: For when dayOfWeek and routes are empty (e.g., initial state)
+            path: 'grid', // Matches 'grid'
             outlet: 'grid',
             loadComponent: () =>
               import('./map-grid/planner/planner.component').then(

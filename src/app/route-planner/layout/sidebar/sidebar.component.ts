@@ -76,27 +76,6 @@ export class SidebarComponent implements OnInit {
 
       this.updateAppName();
     });
-    // this.route.params.subscribe((params) => {
-    //   console.log('paraams sidebar', params);
-    //   this.navService.selectedOperationUnit = params['operationUnit'] || 'Comm';
-    //   this.navService.selectedRouteType = params['routeType'] || 'FL';
-    //   this.navService.selectedDayOfWeek = params['dayOfWeek'] || 'Monday';
-    //   const tabName = params['tabName'] || 'routes';
-
-    //   this.navService.updateState({
-    //     operationUnit: this.navService.selectedOperationUnit,
-    //     routeType: this.navService.selectedRouteType,
-    //     dayOfWeek: this.navService.selectedDayOfWeek,
-    //     tabName,
-    //     view: 'daily',
-    //   });
-    //   this.updateAppName();
-    //   console.log(
-    //     this.navService.selectedOperationUnit,
-    //     this.navService.selectedRouteType,
-    //     this.navService.selectedDayOfWeek
-    //   );
-    // });
   }
 
   private updateAppContext(state: any) {

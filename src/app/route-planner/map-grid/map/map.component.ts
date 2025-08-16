@@ -22,6 +22,7 @@ import CircleStyle from 'ol/style/Circle';
 import Fill from 'ol/style/Fill';
 import Style from 'ol/style/Style';
 import { NavigationService } from '../../shared/services/navigation.service';
+import { features } from 'process';
 @Component({
   selector: 'app-map',
   standalone: true,
@@ -42,9 +43,9 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.route.params.subscribe((params) => {
       this.mapId = params['mapId'] || 'map1'; // Get map ID from URL or use default
       console.log('Map component route params:', params);
+      this.navBar.updateMapGridState({ mapId: this.mapId});
     });
     this.navBar.mapEventSubject.subscribe((event) => {
-      console.log('Map event received:', event);
       this.points = event.points || [];
       this.updateMapFeatures();
     });
@@ -54,12 +55,15 @@ export class MapComponent implements AfterViewInit, OnInit {
   ngAfterViewInit() {
     this.vectorLayer = new VectorLayer({
       source: new VectorSource(),
-      style: new Style({
-        image: new CircleStyle({
-          radius: 7,
-          fill: new Fill({ color: 'red' }),
-        }),
-      }),
+      style: (feature) => {
+        if (!feature.getGeometry()) return;
+        return new Style({
+          image: new CircleStyle({
+            radius: 7,
+            fill: new Fill({ color: 'red' }),
+          }),
+        });
+      },
     });
 
     this.map = new Map({
@@ -73,16 +77,11 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.updateMapFeatures();
   }
 
-  // ngOnChanges(changes: SimpleChanges) {
-  //   console.log(changes, this.map);
-  //   if (changes['points'] && this.map) {
-  //     this.points = changes['points'].currentValue;
-  //     this.updateMapFeatures();
-  //   }
-  // }
 
   updateMapFeatures() {
-    console.log('update map feature', this.points);
+      if (!this.points || this.points.length === 0) {
+        return; // 👈 nothing to add, skip styling
+      }
     const source = this.vectorLayer?.getSource();
     source?.clear();
     this.points.forEach((pt) => {

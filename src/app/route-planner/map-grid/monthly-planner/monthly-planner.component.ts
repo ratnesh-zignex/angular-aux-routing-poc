@@ -42,8 +42,8 @@ export class MonthlyPlannerComponent {
         lng: -74.006 + 0.01 * idx,
         color: 'red',
       }));
+      this.navService.updateMapGridState({selectedRoutes: this.routes, dayOfWeek: this.dayOfWeek});
       this.navService.mapEventSubject.next({ points: points });
-      console.log(this.gridData, points);
     });
   }
 }

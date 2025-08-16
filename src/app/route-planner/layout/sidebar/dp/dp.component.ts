@@ -52,8 +52,7 @@ export class DpComponent implements OnInit {
     private route: ActivatedRoute
   ) {
     this.route.params.subscribe((params) => {
-      console.log('sidebar params:', params);
-
+      console.log('dp params:', params);
       const tabName = params['tabName'];
       this.navService.changeTab(tabName);
       this.tabName = tabName || 'routes';
@@ -61,68 +60,22 @@ export class DpComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('tab name');
-    // this.route.params.subscribe((params) => {
-    //   const tabName = params['tabName'];
-    //   if (tabName && this.tabs.includes(tabName)) {
-    //     this.selectedTab = tabName;
-    //   }
-    // });
-    // this.dataSync.selectedRoutes =
-    //   this.routesByDay[this.dataSync.selectedDayOfWeek];
     this.navService.sidebarState$.subscribe((state) => {
       this.currentState = state;
     });
   }
-
-  // loadData() {
-  //   // Trigger navigation to show map and grid with selected routes
-  //   const currentState = this.navService.getCurrentState();
-  //   this.navService.updateState({
-  //     ...currentState,
-  //     selectedRoutes: this.selectedRoutes,
-  //   });
-  // }
-  // onRouteToggle(route: string, event: Event) {
-  //   const input = event.target as HTMLInputElement;
-  //   const isChecked = input?.checked;
-  //   if (isChecked) {
-  //     if (!this.dataSync.selectedRoutes.includes(route))
-  //       this.dataSync.selectedRoutes.push(route);
-  //   } else {
-  //     this.dataSync.selectedRoutes = this.dataSync.selectedRoutes.filter(
-  //       (r) => r !== route
-  //     );
-  //   }
-  // }
-  // onRouteToggle(routeName: string, event: Event) {
-  //   const input = event.target as HTMLInputElement;
-  //   const isChecked = input?.checked;
-
-  //   let newSelectedRoutes: string[];
-  //   if (isChecked) {
-  //     newSelectedRoutes = [...this.selectedRoutes, routeName];
-  //   } else {
-  //     newSelectedRoutes = this.selectedRoutes.filter((r) => r !== routeName);
-  //   }
-
-  //   this.navService.updateSelectedRoutes(newSelectedRoutes);
-  // }
   onRouteToggle(routeName: string, event: Event) {
     const input = event.target as HTMLInputElement;
     const isChecked = input?.checked;
 
     let newSelectedRoutes: string[];
     if (isChecked) {
-      console.log(this.currentState.selectedRoutes);
-      console.log(routeName);
       newSelectedRoutes = [...this.currentState.selectedRoutes, routeName];
     } else {
       newSelectedRoutes = this.currentState.selectedRoutes.filter(
         (r: string) => r !== routeName
       );
     }
-    console.log(newSelectedRoutes);
     this.currentState.selectedRoutes = newSelectedRoutes;
     this.navService.updateSelectedRoutes(newSelectedRoutes);
   }
@@ -142,7 +95,6 @@ export class DpComponent implements OnInit {
   }
   loadData() {
     // This will sync sidebar state to map-grid and navigate
-    console.log('Loading data with routes:', this.currentState.selectedRoutes);
     this.navService.loadData();
   }
 }
