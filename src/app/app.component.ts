@@ -23,14 +23,9 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
     this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) {
-        console.log('Navigated to:', event.url);
-      } else if (event instanceof NavigationStart) {
-        console.log('Navigation started:', event.url);
-      } else if (event instanceof NavigationError) {
-        console.log('Navigation ended:', event.url);
-      } else if (event instanceof NavigationSkipped) {
-        console.log('Navigation ended:', event.url);
+  if (event instanceof NavigationError) {
+    console.warn('Navigation error:', event);
+          this.navService.navigateToDefault();
       }
     });
     // Navigate to default route if no specific route is provided

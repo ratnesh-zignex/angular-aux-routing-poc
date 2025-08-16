@@ -3,7 +3,7 @@ import { Router, UrlTree } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 
 export interface SidebarState {
-  plannerType: 'rp' | 'mp' | 'sp';
+  plannerType: string;
   operationUnit: string;
   routeType: string;
   dayOfWeek: string;
@@ -125,6 +125,7 @@ export class NavigationService {
   }
   private navigateMapGrid(state: MapGridState) {
     const currentUrl = this.router.url;
+    const currentState = this.getCurrentSidebarState();
     console.log(this.extractCurrentSidebarFromUrl(currentUrl));
     const routesParam =
       state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
@@ -142,7 +143,7 @@ export class NavigationService {
       this.primaryRoute,
       {
         outlets: {
-          sidebar: this.extractCurrentSidebarFromUrl(currentUrl),
+          sidebar: ['sidebar',currentState.operationUnit, currentState.routeType, currentState.dayOfWeek, currentState.tabName],
           mapgrid: mapgridPath,
         },
       },
@@ -228,11 +229,11 @@ export class NavigationService {
     });
     // this.syncStatesAndNavigate();
   }
-  navigateToDefault() {
+  navigateToDefault(plannerType: string = "rp") {
     // Get current states from NavigationService (which might have been initialized from URL)
     // Define default states if current ones are not fully populated or if we want to enforce defaults
     const defaultSidebarState: SidebarState = {
-      plannerType: 'rp',
+      plannerType,
       operationUnit: 'Comm',
       routeType: 'FL',
       dayOfWeek: 'Monday',
