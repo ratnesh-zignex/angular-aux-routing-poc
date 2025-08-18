@@ -79,9 +79,6 @@ export class MapComponent implements AfterViewInit, OnInit {
 
 
   updateMapFeatures() {
-      if (!this.points || this.points.length === 0) {
-        return; // 👈 nothing to add, skip styling
-      }
     const source = this.vectorLayer?.getSource();
     source?.clear();
     this.points.forEach((pt) => {

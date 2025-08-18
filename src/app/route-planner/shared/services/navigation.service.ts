@@ -112,12 +112,22 @@ export class NavigationService {
         },
       },
     ];
+    const initialMapGridPath = [
+      'mapgrid',
+      mapGridState.view,
+      {
+        outlets: {
+          grid: ['grid'],
+          map: ['map', mapGridState.mapId],
+        },
+      },
+    ];
     this.router.navigate([
       `/${state.plannerType}`,
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapgridPath,
+          mapgrid: mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath,
         },
       },
     ]);
@@ -139,17 +149,32 @@ export class NavigationService {
         },
       },
     ];
+    const initialMapGridPath = [
+      'mapgrid',
+      state.view,
+      {
+        outlets: {
+          grid: ['grid'],
+          map: ['map', state.mapId],
+        },
+      },
+    ];
     this.router.navigate([
       this.primaryRoute,
       {
         outlets: {
-          sidebar: ['sidebar',currentState.operationUnit, currentState.routeType, currentState.dayOfWeek, currentState.tabName],
-          mapgrid: mapgridPath,
+          sidebar: [
+            'sidebar',
+            currentState.operationUnit,
+            currentState.routeType,
+            currentState.dayOfWeek,
+            currentState.tabName,
+          ],
+          mapgrid: state.dayOfWeek ? mapgridPath : initialMapGridPath,
         },
       },
     ]);
     console.log(this.extractCurrentSidebarFromUrl(currentUrl), mapgridPath);
-
   }
   private navigateFull(sidebarState: SidebarState, mapGridState: MapGridState) {
     const routesParam =
@@ -173,13 +198,28 @@ export class NavigationService {
         },
       },
     ];
-    console.log('mapGird path', mapgridPath);
+    const initialMapGridPath = [
+      'mapgrid',
+      mapGridState.view,
+      {
+        outlets: {
+          grid: ['grid'],
+          map: ['map', mapGridState.mapId],
+        },
+      },
+    ];
+
+    console.log(
+      'mapGird path',
+      Boolean(mapGridState.dayOfWeek),
+      mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath
+    );
     this.router.navigate([
       `/${sidebarState.plannerType}`,
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapgridPath,
+          mapgrid: mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath,
         },
       },
     ]);
@@ -229,7 +269,7 @@ export class NavigationService {
     });
     // this.syncStatesAndNavigate();
   }
-  navigateToDefault(plannerType: string = "rp") {
+  navigateToDefault(plannerType: string = 'rp') {
     // Get current states from NavigationService (which might have been initialized from URL)
     // Define default states if current ones are not fully populated or if we want to enforce defaults
     const defaultSidebarState: SidebarState = {

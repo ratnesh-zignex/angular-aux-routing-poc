@@ -21,9 +21,11 @@ const routes: Routes = [
         children: [
           {
             path: ':tabName',
-            loadComponent: () => 
-              import('./layout/sidebar/dp/dp.component').then((m) => m.DpComponent), // Rp Sidebar
-          }
+            loadComponent: () =>
+              import('./layout/sidebar/dp/dp.component').then(
+                (m) => m.DpComponent
+              ), // Rp Sidebar
+          },
         ],
       },
 
@@ -36,6 +38,24 @@ const routes: Routes = [
             (m) => m.MapGridComponent
           ),
         children: [
+          {
+            // ADD THIS: For when dayOfWeek and routes are empty (e.g., initial state)
+            path: 'grid', // Matches 'grid'
+            outlet: 'grid',
+            loadComponent: () =>
+              import('./map-grid/planner/planner.component').then(
+                (m) => m.PlannerComponent
+              ),
+          },
+          {
+            // ADD THIS: For when routes are empty
+            path: 'grid/:dayOfWeek', // Matches 'grid/Monday'
+            outlet: 'grid',
+            loadComponent: () =>
+              import('./map-grid/planner/planner.component').then(
+                (m) => m.PlannerComponent
+              ),
+          },
           {
             path: 'grid/:dayOfWeek/:routes',
             outlet: 'grid',
@@ -50,24 +70,6 @@ const routes: Routes = [
             loadComponent: () =>
               import('./map-grid/map/map.component').then(
                 (m) => m.MapComponent
-              ),
-          },
-          {
-            // ADD THIS: For when routes are empty
-            path: 'grid/:dayOfWeek', // Matches 'grid/Monday'
-            outlet: 'grid',
-            loadComponent: () =>
-              import('./map-grid/planner/planner.component').then(
-                (m) => m.PlannerComponent
-              ),
-          },
-          {
-            // ADD THIS: For when dayOfWeek and routes are empty (e.g., initial state)
-            path: 'grid', // Matches 'grid'
-            outlet: 'grid',
-            loadComponent: () =>
-              import('./map-grid/planner/planner.component').then(
-                (m) => m.PlannerComponent
               ),
           },
         ],
