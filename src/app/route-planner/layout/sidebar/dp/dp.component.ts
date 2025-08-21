@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   NavigationService,
   SidebarState,
 } from '../../../shared/services/navigation.service';
+import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-dp',
@@ -14,7 +15,7 @@ import {
   templateUrl: './dp.component.html',
   styleUrl: './dp.component.scss',
 })
-export class DpComponent implements OnInit {
+export class DpComponent implements OnInit, OnDestroy {
   rpTabs = [
     { value: 'routes', label: 'Routes' },
     { value: 'facility', label: 'Facility' },
@@ -45,18 +46,26 @@ export class DpComponent implements OnInit {
     selectedRoutes: [],
   };
   selectedRoutes: string[] = [];
+  isNavigating: boolean = false;
+  destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
     public navService: NavigationService,
     private route: ActivatedRoute
   ) {
-    this.route.params.subscribe((params) => {
-      console.log('dp params:', params);
-      const tabName = params['tabName'];
-      this.navService.changeTab(tabName);
-      this.tabName = tabName || 'routes';
-    });
+    this.route.params
+      .pipe(
+        distinctUntilChanged(), // Only emit when params actually change
+        filter(() => !this.isNavigating), // Prevent navigation during navigation
+        takeUntil(this.destroy$)
+      )
+      .subscribe((params) => {
+        console.log('dp params:', params);
+        const tabName = params['tabName'];
+        this.navService.changeTab(tabName);
+        this.tabName = tabName || 'routes';
+      });
   }
 
   ngOnInit() {
@@ -96,5 +105,9 @@ export class DpComponent implements OnInit {
   loadData() {
     // This will sync sidebar state to map-grid and navigate
     this.navService.loadData();
+  }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

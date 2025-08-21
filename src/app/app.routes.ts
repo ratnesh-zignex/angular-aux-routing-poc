@@ -7,5 +7,5 @@ export const routes: Routes = [
       import('./route-planner/route-planner.module').then(
         (m) => m.RoutePlannerModule
       ),
-  },
+  }
 ];
