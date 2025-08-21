@@ -9,7 +9,7 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { RoutePlannerComponent } from './route-planner/route-planner.component';
-import { NavigationService } from './route-planner/shared/services/navigation.service';
+import { NavigationService } from './route-planner/shared/services/Navigation/navigation.service';
 
 @Component({
   selector: 'app-root',
@@ -23,15 +23,16 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
     this.router.events.subscribe((event) => {
-  if (event instanceof NavigationError) {
-    console.warn('Navigation error:', event);
-          this.navService.navigateToDefault();
+      if (event instanceof NavigationStart) {
+        if (event.url === '/') {
+          console.log('navigation RP now');
+            this.navService.navigateToDefault();
+        }
+      } else if (event instanceof NavigationError) {
+        console.warn('Navigation error:', event);
+        this.navService.navigateToDefault();
       }
     });
-    // Navigate to default route if no specific route is provided
-    if (this.router.url === '/') {
-      console.log('navigation RP');
-      this.navService.navigateToDefault();
-    }
+    console.log('app compponent', this.router.url);
   }
 }

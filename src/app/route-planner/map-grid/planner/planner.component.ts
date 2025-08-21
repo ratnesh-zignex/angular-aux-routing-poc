@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { WjGridModule } from '@grapecity/wijmo.angular2.grid';
-import { NavigationService } from '../../shared/services/navigation.service';
+import { NavigationService } from '../../shared/services/Navigation/navigation.service';
 @Component({
   selector: 'app-planner',
   standalone: true,
@@ -27,8 +27,8 @@ export class PlannerComponent {
     this.route.params.subscribe((params) => {
       console.log('route params wijmo grid', params);
       // Demo: create rows for each selected route
-       this.routes = params['routes'] ? params['routes'].split(',') : [];
-       this.dayOfWeek = params['dayOfWeek'];
+      this.routes = params['routes'] ? params['routes'].split(',') : [];
+      this.dayOfWeek = params['dayOfWeek'];
 
       if (this.routes.length) {
         this.gridData = this.routes.map((route: string) => ({

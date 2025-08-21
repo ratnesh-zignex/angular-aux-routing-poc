@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { NavigationService } from '../../shared/services/navigation.service';
-import { WjGridModule } from "@grapecity/wijmo.angular2.grid";
+import { NavigationService } from '../../shared/services/Navigation/navigation.service';
+import { WjGridModule } from '@grapecity/wijmo.angular2.grid';
 
 @Component({
   selector: 'app-monthly-planner',
@@ -42,7 +42,10 @@ export class MonthlyPlannerComponent {
         lng: -74.006 + 0.01 * idx,
         color: 'red',
       }));
-      this.navService.updateMapGridState({selectedRoutes: this.routes, dayOfWeek: this.dayOfWeek});
+      this.navService.updateMapGridState({
+        selectedRoutes: this.routes,
+        dayOfWeek: this.dayOfWeek,
+      });
       this.navService.mapEventSubject.next({ points: points });
     });
   }

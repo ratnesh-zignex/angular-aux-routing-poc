@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import {
   NavigationService,
   SidebarState,
-} from '../../shared/services/navigation.service';
+} from '../../shared/services/Navigation/navigation.service';
 
 @Component({
   selector: 'app-sidebar',

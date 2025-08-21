@@ -1,5 +1,16 @@
 <div class="dp-container">
   <!-- RP-specific Tab Navigation -->
+  <div class="toolbar">
+    <!-- Add Pop Out Map Button -->
+    <button (click)="popOutMap()" class="btn-primary">Pop Out Map</button>
+    <button
+      *ngIf="popoutService.isPopoutOpen()"
+      (click)="closePopout()"
+      class="btn-secondary"
+    >
+      Close Popout
+    </button>
+  </div>
   <div class="tab-navigation">
     <button
       *ngFor="let tab of rpTabs"

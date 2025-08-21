@@ -5,7 +5,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   NavigationService,
   SidebarState,
-} from '../../../shared/services/navigation.service';
+} from '../../../shared/services/Navigation/navigation.service';
+import { MapPopoutServiceService } from '../../../shared/services/mapPopout/map-popout-service.service';
 
 @Component({
   selector: 'app-dp',
@@ -49,7 +50,8 @@ export class DpComponent implements OnInit {
   constructor(
     private router: Router,
     public navService: NavigationService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public popoutService: MapPopoutServiceService
   ) {
     this.route.params.subscribe((params) => {
       console.log('dp params:', params);
@@ -96,5 +98,14 @@ export class DpComponent implements OnInit {
   loadData() {
     // This will sync sidebar state to map-grid and navigate
     this.navService.loadData();
+  }
+  popOutMap(): void {
+    const currentMapGridState = this.navService.getCurrentMapGridState();
+    const currentSidebarState = this.navService.getCurrentSidebarState();
+    this.popoutService.openPopoutMap(currentMapGridState, currentSidebarState);
+  }
+
+  closePopout(): void {
+    this.popoutService.closePopout();
   }
 }

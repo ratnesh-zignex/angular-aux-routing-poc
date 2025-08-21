@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
+import { MapPopoutServiceService } from '../mapPopout/map-popout-service.service';
 
 export interface SidebarState {
   plannerType: string;
@@ -57,7 +58,55 @@ export class NavigationService {
   selectedRoutes: string[] = [];
   primaryRoute: string = '/rp';
   mapEventSubject: Subject<any> = new Subject<any>(); // For map events
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private popoutService: MapPopoutServiceService
+  ) {
+    // Subscribe to incoming messages from the pop-out window
+    this.popoutService.mapStateUpdates$.subscribe((mapState) => {
+      console.log('NavService received mapStateUpdate from pop-out:', mapState);
+      // Update internal mapGridState, but prevent re-triggering navigation if it came from pop-out
+      this.mapGridState.next(mapState);
+      // Also update legacy properties if needed
+      this.selectedDayOfWeek = mapState.dayOfWeek;
+      this.selectedRoutes = mapState.selectedRoutes;
+      // Do NOT call navigateMapGrid here, as the pop-out already reflects this state.
+      // The main app's mapgrid router outlet will update via its own subscriptions.
+    });
+    this.popoutService.sidebarStateUpdates$.subscribe((sidebarState) => {
+      console.log(
+        'NavService received sidebarStateUpdate from pop-out:',
+        sidebarState
+      );
+      this.sidebarState.next(sidebarState);
+      // Update legacy properties
+      this.selectedOperationUnit = sidebarState.operationUnit;
+      this.selectedRouteType = sidebarState.routeType;
+      this.selectedDayOfWeek = sidebarState.dayOfWeek;
+      // Do NOT call navigateSidebar here.
+    });
+    this.popoutService.mapEvents$.subscribe((event) => {
+      console.log('NavService received mapEvent from pop-out:', event);
+      this.mapEventSubject.next(event); // Forward map events to components that listen to it
+    });
+    // Subscribe to internal state changes and send them to pop-out if open
+    this.sidebarState$.subscribe((state) => {
+      if (this.popoutService.isPopoutOpen()) {
+        this.popoutService.sendMessage({
+          type: 'sidebarStateUpdate',
+          payload: state,
+        });
+      }
+    });
+    this.mapGridState$.subscribe((state) => {
+      if (this.popoutService.isPopoutOpen()) {
+        this.popoutService.sendMessage({
+          type: 'mapStateUpdate',
+          payload: state,
+        });
+      }
+    });
+  }
   // getCurrentState(): NavigationState {
   //   return this.navigationState.value;
   // }
