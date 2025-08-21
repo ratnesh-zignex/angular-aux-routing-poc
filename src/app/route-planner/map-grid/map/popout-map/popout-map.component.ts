@@ -1,5 +1,5 @@
 import { Component, ComponentRef, OnDestroy, OnInit, ViewChild, ViewContainerRef } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subject, Subscription, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 import {
   MapGridState,
   NavigationService,
@@ -24,40 +24,49 @@ export class PopoutMapComponent implements OnInit, OnDestroy {
   @ViewChild('mapContainer', { read: ViewContainerRef })
   mapContainer!: ViewContainerRef;
   private mapComponentRef: ComponentRef<any> | null = null;
+  isNavigating: boolean = false;
+  destroy$ = new Subject<void>();
   constructor(
     private route: ActivatedRoute,
     private popoutService: MapPopoutServiceService,
     private navService: NavigationService, // public mapComp: MapComponent,
-    private router: Router,
+    private router: Router
   ) {
     // Listen for initial state from the URL (if any)
-    this.route.params.subscribe((params) => {
-      const mapId = params['mapId'] || 'main';
-      const view = params['view'] || 'daily';
-      const dayOfWeek = params['dayOfWeek'] || '';
-      const routes = params['routes'] ? params['routes'].split(',') : [];
-      this.currentMapGridState = {
-        mapId,
-        view,
-        dayOfWeek,
-        selectedRoutes: routes,
-      };
-      console.log(
-        'PopoutMapComponent initialized with URL params:',
-        this.currentMapGridState
-      );
-      this.router.navigate([`popout-map/${view}/${mapId}/${dayOfWeek}/${routes}`]
-       );
-      // if (this.mapComp) this.mapComp.updateMapFeatures(); // Update map based on initial URL params
-    });
+    this.route.params
+      .pipe(
+        distinctUntilChanged(), // Only emit when params actually change
+        filter(() => !this.isNavigating), // Prevent navigation during navigation
+        takeUntil(this.destroy$)
+      )
+      .subscribe((params) => {
+        const mapId = params['mapId'] || 'main';
+        const view = params['view'] || 'daily';
+        const dayOfWeek = params['dayOfWeek'] || '';
+        const routes = params['routes'] ? params['routes'].split(',') : [];
+        this.currentMapGridState = {
+          mapId,
+          view,
+          dayOfWeek,
+          selectedRoutes: routes,
+        };
+        console.log(
+          'PopoutMapComponent initialized with URL params:',
+          this.currentMapGridState
+        );
+        this.router.navigate([
+          `popout-map/${view}/${mapId}/${dayOfWeek}/${routes}`,
+        ]);
+        // if (this.mapComp) this.mapComp.updateMapFeatures(); // Update map based on initial URL params
+      });
     // Subscribe to incoming state updates from the main window
     this.subscriptions.add(
       this.popoutService.mapStateUpdates$.subscribe((state) => {
         console.log('PopoutMapComponent received mapStateUpdate:', state);
         this.currentMapGridState = state;
-      this.router.navigate([
-        `popout-map/${this.currentMapGridState.view}/${this.currentMapGridState.mapId}/${this.currentMapGridState.dayOfWeek}/${this.currentMapGridState.selectedRoutes}`,
-      ]);
+        this.router.navigate([
+          `popout-map/${this.currentMapGridState.view}/${this.currentMapGridState.mapId}/${this.currentMapGridState.dayOfWeek}/${this.currentMapGridState.selectedRoutes}`,
+        ]);
 
         // Here you can call a method to update the map if needed
       })
@@ -83,8 +92,10 @@ export class PopoutMapComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
     // No need to close BroadcastChannel here, PopoutService handles it.
-     if (this.mapComponentRef) {
-       this.mapComponentRef.destroy();
-     }
+    if (this.mapComponentRef) {
+      this.mapComponentRef.destroy();
+    }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
