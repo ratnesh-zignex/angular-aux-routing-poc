@@ -1,4 +1,4 @@
-<wj-flex-grid
+<!-- <wj-flex-grid
   [itemsSource]="gridData"
   [autoGenerateColumns]="false"
   style="height: 180px; width: 100%" 
@@ -6,4 +6,23 @@
   <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
   <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
   <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
-</wj-flex-grid>
+</wj-flex-grid> -->
+<ng-container *ngIf="this.isBrowser">
+  <wj-flex-grid
+    [itemsSource]="gridData"
+    [autoGenerateColumns]="false"
+    style="height: 200px; width: 100%"
+    >
+    <wj-flex-grid-column binding="route" header="Route" [width]="80"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="stop" header="Stop" [width]="60"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="passengers" header="Passengers" [width]="90"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="day" header="Day" [width]="80"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="lat" header="Latitude" [width]="100" format="n6"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="lng" header="Longitude" [width]="100" format="n6"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="color" header="Color" [width]="80">
+       <ng-template wjFlexGridCellTemplate let-cell="cell" let-value="value">
+        <span [style.color]="value">● {{ value }}</span>
+      </ng-template>
+    </wj-flex-grid-column>
+  </wj-flex-grid>
+</ng-container>

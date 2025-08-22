@@ -1,0 +1,30 @@
+.grid-container {
+  padding: 10px;
+}
+
+.grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+
+  h3 {
+    margin: 0;
+    color: #333;
+  }
+
+  .legend {
+    display: flex;
+    gap: 15px;
+    font-size: 0.85em;
+    color: #666;
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+  }
+}

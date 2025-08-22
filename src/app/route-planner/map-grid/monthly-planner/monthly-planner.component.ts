@@ -55,7 +55,7 @@ export class MonthlyPlannerComponent implements OnDestroy {
           selectedRoutes: this.routes,
           dayOfWeek: this.dayOfWeek,
         });
-        this.navService.mapEventSubject.next({ points: points });
+        // this.navService.mapEventSubject.next({ points: points });//Todo
       });
   }
   ngOnDestroy() {

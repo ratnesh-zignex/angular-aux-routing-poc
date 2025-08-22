@@ -17,7 +17,7 @@ import {
 @Component({
   selector: 'app-route-planner',
   standalone: true,
-  imports: [RouterOutlet, MapComponent],
+  imports: [RouterOutlet],
   templateUrl: './route-planner.component.html',
   styleUrl: './route-planner.component.scss',
 })

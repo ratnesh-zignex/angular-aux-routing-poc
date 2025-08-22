@@ -5,10 +5,8 @@ import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
 
 export const appConfig: ApplicationConfig = {
-  providers: [
+  providers: [  
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(
-      routes
-    ),
+    provideRouter(routes),
   ],
 };

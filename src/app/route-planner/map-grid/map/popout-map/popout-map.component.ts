@@ -44,6 +44,7 @@ export class PopoutMapComponent implements OnInit, OnDestroy {
         const view = params['view'] || 'daily';
         const dayOfWeek = params['dayOfWeek'] || '';
         const routes = params['routes'] ? params['routes'].split(',') : [];
+        // this.navService.selectedRoutes = routes;
         this.currentMapGridState = {
           mapId,
           view,

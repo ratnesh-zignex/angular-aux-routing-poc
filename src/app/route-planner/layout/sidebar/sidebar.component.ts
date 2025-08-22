@@ -48,7 +48,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
-    public navService: NavigationService
+    public navService: NavigationService,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -100,7 +101,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     }
   }
   private getPlannerTypeFromUrl(): 'rp' | 'mp' | 'sp' {
-    const url = window.location.pathname;
+    const url = this.router.url;
     if (url.includes('/mp')) return 'mp';
     if (url.includes('/sp')) return 'sp';
     return 'rp';
@@ -115,10 +116,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.navService.changeDow(day);
   }
   updateAppName() {
-    if (window.location.pathname.includes('/sp')) {
+    if (this.router.url.includes('/sp')) {
       this.navService.primaryRoute = '/sp';
       this.appName = 'Scenario Planner';
-    } else if (window.location.pathname.includes('/mp')) {
+    } else if (this.router.url.includes('/mp')) {
       this.navService.primaryRoute = '/mp';
       this.appName = 'Monthly Planner';
     } else {

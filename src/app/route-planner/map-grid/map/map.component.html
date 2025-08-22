@@ -1,1 +1,30 @@
-<div id="olmap" style="width:100%; height:80vh;"></div>
+<!-- <div id="olmap" style="width:100%; height:80vh;"></div> -->
+  <!-- Map Tools -->
+  <div class="map-tools">
+    <button 
+      [class.active]="isColorToolEnabled"
+      (click)="toggleColorTool()"
+      class="tool-btn">
+      🎨 Color Tool {{ isColorToolEnabled ? '(ON)' : '(OFF)' }}
+    </button>
+    
+    <button 
+      [disabled]="!unsavedChanges"
+      (click)="saveChanges()"
+      class="save-btn">
+      💾 Save Changes
+    </button>
+    
+    <button 
+      [disabled]="!unsavedChanges"
+      (click)="resetChanges()"
+      class="reset-btn">
+      🔄 Reset
+    </button>
+    
+    <div class="status">
+      <span *ngIf="isDragModeEnabled" class="drag-mode">🖱️ Drag Mode Active</span>
+      <span *ngIf="unsavedChanges" class="unsaved">⚠️ Unsaved Changes</span>
+    </div>
+  </div>
+  <div id="olmap" style="width:100%; height:70vh;"></div>

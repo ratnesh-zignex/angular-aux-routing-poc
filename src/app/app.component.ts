@@ -30,7 +30,8 @@ export class AppComponent implements OnInit {
         }
       } else if (event instanceof NavigationError) {
         console.warn('Navigation error:', event);
-        this.navService.navigateToDefault();
+        if (event.error.message.includes('Cannot match any routes'))
+          this.navService.navigateToDefault();
       }
     });
     console.log('app compponent', this.router.url);

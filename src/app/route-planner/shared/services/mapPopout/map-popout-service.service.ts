@@ -1,8 +1,13 @@
-import { Injectable, NgZone } from '@angular/core';
-import { MapGridState, SidebarState } from '../Navigation/navigation.service';
+import { Inject, Injectable, NgZone, PLATFORM_ID } from '@angular/core';
+import {
+  MapGridState,
+  MapPoint,
+  SidebarState,
+} from '../Navigation/navigation.service';
 import { Observable, Subject } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 export interface PopoutMessage {
-  type: 'mapStateUpdate' | 'sidebarStateUpdate' | 'mapEvent'| string;
+  type: 'mapStateUpdate' | 'sidebarStateUpdate' | 'mapEvent' | string;
   payload: any;
 }
 @Injectable({
@@ -21,9 +26,12 @@ export class MapPopoutServiceService {
     this._sidebarStateUpdates.asObservable();
   private _mapEvents = new Subject<any>();
   mapEvents$: Observable<any> = this._mapEvents.asObservable();
-  constructor(private ngZone: NgZone) {
+  constructor(
+    private ngZone: NgZone,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
     // Initialize BroadcastChannel if not already done (e.g., on app reload)
-    this.initializeBroadcastChannel();
+    if (isPlatformBrowser(this.platformId)) this.initializeBroadcastChannel();
   }
   initializeBroadcastChannel(): void {
     if (!this.broadcastChannel) {
@@ -58,6 +66,7 @@ export class MapPopoutServiceService {
     initialMapGridState: MapGridState,
     initialSidebarState: SidebarState
   ): void {
+    if (!isPlatformBrowser(this.platformId)) return;
     if (this.popoutWindow && !this.popoutWindow.closed) {
       this.popoutWindow.focus();
       return;
@@ -76,10 +85,7 @@ export class MapPopoutServiceService {
     const popoutUrl = `/popout-map/${view}/${mapId}/${dayOfWeek}${
       routes ? '/' + routes : ''
     }`;
-    this.popoutWindow = window.open(
-      popoutUrl,
-      'MapPopoutWindow'
-    );
+    this.popoutWindow = window.open(popoutUrl, 'MapPopoutWindow');
     if (this.popoutWindow) {
       // Send initial state to the new window once it's loaded
       this.popoutWindow.onload = () => {
@@ -119,6 +125,40 @@ export class MapPopoutServiceService {
       this.popoutWindow = null;
     }
   }
+
+  // Add these new methods to handle enhanced messaging
+
+  sendMapEvent(eventType: string, payload: any): void {
+    this.sendMessage({
+      type: 'mapEvent',
+      payload: { type: eventType, payload },
+    });
+  }
+
+  // Add point-specific message handlers
+  sendPointUpdate(points: MapPoint[]): void {
+    this.sendMessage({
+      type: 'mapStateUpdate',
+      payload: { points },
+    });
+  }
+
+  sendPointMoved(
+    pointId: string,
+    newPosition: { lat: number; lng: number },
+    points: MapPoint[]
+  ): void {
+    this.sendMapEvent('POINT_MOVED', { pointId, newPosition, points });
+  }
+
+  sendColorChanged(
+    pointId: string,
+    newColor: string,
+    points: MapPoint[]
+  ): void {
+    this.sendMapEvent('POINT_COLOR_CHANGED', { pointId, newColor, points });
+  }
+
   // Clean up the BroadcastChannel when the service is destroyed (e.g., on app refresh/close)
   ngOnDestroy(): void {
     if (this.broadcastChannel) {

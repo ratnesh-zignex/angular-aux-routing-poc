@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable, PLATFORM_ID } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { MapPopoutServiceService } from '../mapPopout/map-popout-service.service';
+import { isPlatformBrowser } from '@angular/common';
 
 export interface SidebarState {
   plannerType: string;
@@ -17,6 +18,36 @@ export interface MapGridState {
   dayOfWeek: string;
   selectedRoutes: string[];
   mapId: string;
+  points?: MapPoint[]; // Add points to state
+}
+// Add this interface at the top of navigation.service.ts
+export interface MapPoint {
+  route: string;
+  lat: number;
+  lng: number;
+  color: string;
+  id?: string; // Add unique identifier
+  originalLat?: number; // Store original position
+  originalLng?: number;
+  // Add grid-specific properties
+  day?: string;
+  stop?: string;
+  passengers?: number;
+}
+// Add new message types for communication
+export interface MapEventMessage {
+  type:
+    | 'POINT_MOVED'
+    | 'POINT_COLOR_CHANGED'
+    | 'POINTS_UPDATED'
+    | 'SAVE_CHANGES';
+  payload: {
+    points?: MapPoint[];
+    pointId?: string;
+    newPosition?: { lat: number; lng: number };
+    newColor?: string;
+    route?: string;
+  };
 }
 @Injectable({
   providedIn: 'root',
@@ -60,52 +91,58 @@ export class NavigationService {
   mapEventSubject: Subject<any> = new Subject<any>(); // For map events
   constructor(
     private router: Router,
-    private popoutService: MapPopoutServiceService
+    private popoutService: MapPopoutServiceService,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    // Subscribe to incoming messages from the pop-out window
-    this.popoutService.mapStateUpdates$.subscribe((mapState) => {
-      console.log('NavService received mapStateUpdate from pop-out:', mapState);
-      // Update internal mapGridState, but prevent re-triggering navigation if it came from pop-out
-      this.mapGridState.next(mapState);
-      // Also update legacy properties if needed
-      this.selectedDayOfWeek = mapState.dayOfWeek;
-      this.selectedRoutes = mapState.selectedRoutes;
-      // Do NOT call navigateMapGrid here, as the pop-out already reflects this state.
-      // The main app's mapgrid router outlet will update via its own subscriptions.
-    });
-    this.popoutService.sidebarStateUpdates$.subscribe((sidebarState) => {
-      console.log(
-        'NavService received sidebarStateUpdate from pop-out:',
-        sidebarState
-      );
-      this.sidebarState.next(sidebarState);
-      // Update legacy properties
-      this.selectedOperationUnit = sidebarState.operationUnit;
-      this.selectedRouteType = sidebarState.routeType;
-      this.selectedDayOfWeek = sidebarState.dayOfWeek;
-      // Do NOT call navigateSidebar here.
-    });
-    this.popoutService.mapEvents$.subscribe((event) => {
-      console.log('NavService received mapEvent from pop-out:', event);
-      this.mapEventSubject.next(event); // Forward map events to components that listen to it
-    });
-    // Subscribe to internal state changes and send them to pop-out if open
-    this.sidebarState$.subscribe((state) => {
-      if (this.popoutService.isPopoutOpen()) {
-        this.popoutService.sendMessage({
-          type: 'sidebarStateUpdate',
-          payload: state,
-        });
-      }
-    });
-    this.mapGridState$.subscribe((state) => {
-      if (this.popoutService.isPopoutOpen()) {
-        this.popoutService.sendMessage({
-          type: 'mapStateUpdate',
-          payload: state,
-        });
-      }
-    });
+    if (isPlatformBrowser(this.platformId)) {
+      // Subscribe to incoming messages from the pop-out window
+      this.popoutService.mapStateUpdates$.subscribe((mapState) => {
+        console.log(
+          'NavService received mapStateUpdate from pop-out:',
+          mapState
+        );
+        // Update internal mapGridState, but prevent re-triggering navigation if it came from pop-out
+        this.mapGridState.next(mapState);
+        // Also update legacy properties if needed
+        this.selectedDayOfWeek = mapState.dayOfWeek;
+        this.selectedRoutes = mapState.selectedRoutes;
+        // Do NOT call navigateMapGrid here, as the pop-out already reflects this state.
+        // The main app's mapgrid router outlet will update via its own subscriptions.
+      });
+      this.popoutService.sidebarStateUpdates$.subscribe((sidebarState) => {
+        console.log(
+          'NavService received sidebarStateUpdate from pop-out:',
+          sidebarState
+        );
+        this.sidebarState.next(sidebarState);
+        // Update legacy properties
+        this.selectedOperationUnit = sidebarState.operationUnit;
+        this.selectedRouteType = sidebarState.routeType;
+        this.selectedDayOfWeek = sidebarState.dayOfWeek;
+        // Do NOT call navigateSidebar here.
+      });
+      this.popoutService.mapEvents$.subscribe((event) => {
+        console.log('NavService received mapEvent from pop-out:', event);
+        this.mapEventSubject.next(event); // Forward map events to components that listen to it
+      });
+      // Subscribe to internal state changes and send them to pop-out if open
+      this.sidebarState$.subscribe((state) => {
+        if (this.popoutService.isPopoutOpen()) {
+          this.popoutService.sendMessage({
+            type: 'sidebarStateUpdate',
+            payload: state,
+          });
+        }
+      });
+      this.mapGridState$.subscribe((state) => {
+        if (this.popoutService.isPopoutOpen()) {
+          this.popoutService.sendMessage({
+            type: 'mapStateUpdate',
+            payload: state,
+          });
+        }
+      });
+    }
   }
   // getCurrentState(): NavigationState {
   //   return this.navigationState.value;
@@ -135,6 +172,10 @@ export class NavigationService {
     this.navigateMapGrid(newState);
   }
   private navigateSidebar(state: SidebarState) {
+    console.log(
+      'NAVIGATIN SIDEBAR AND CHECKING MAP GRID STATE',
+      this.parseUrlForMapGridState(this.router.url)
+    );
     const currentUrl = this.router.parseUrl(this.router.url);
     const mapGridState = this.getCurrentMapGridState();
     console.log(mapGridState);
@@ -338,4 +379,52 @@ export class NavigationService {
     // This will trigger the navigateFull method in NavigationService
     this.navigateFull(defaultSidebarState, defaultMapGridState);
   }
+
+  private parseUrlForMapGridState(url: string): MapGridState {
+  const defaultState: MapGridState = {
+    view: 'daily',
+    dayOfWeek: '',
+    selectedRoutes: [],
+    mapId: 'main'
+  };
+
+  try {
+    const urlTree = this.router.parseUrl(url);
+    const mapgridOutlet = urlTree.root.children['primary'].children['mapgrid'];
+    
+    if (!mapgridOutlet) return defaultState;
+
+    // Extract view
+    const view = mapgridOutlet.segments[1]?.path || 'daily';
+
+    // Extract grid outlet
+    const gridOutlet = mapgridOutlet.children['grid'];
+    let dayOfWeek = '';
+    let selectedRoutes: string[] = [];
+    
+    if (gridOutlet && gridOutlet.segments.length > 1) {
+      dayOfWeek = gridOutlet.segments[1].path;
+      if (gridOutlet.segments.length > 2) {
+        selectedRoutes = gridOutlet.segments[2].path.split(',');
+      }
+    }
+
+    // Extract map outlet
+    const mapOutlet = mapgridOutlet.children['map'];
+    let mapId = 'main';
+    if (mapOutlet && mapOutlet.segments.length > 1) {
+      mapId = mapOutlet.segments[1].path;
+    }
+
+    return {
+      view,
+      dayOfWeek,
+      selectedRoutes,
+      mapId
+    };
+  } catch (error) {
+    console.error('Error parsing URL for map grid state:', error);
+    return defaultState
+  }
+}
 }
