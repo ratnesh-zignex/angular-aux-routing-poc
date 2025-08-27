@@ -1,10 +1,20 @@
-<p>monthly-planner works!</p>
-<wj-flex-grid
-  [itemsSource]="gridData"
-  [autoGenerateColumns]="false"
-  style="height: 180px; width: 100%" 
->
-  <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
-  <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
-  <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
-</wj-flex-grid>
+<div *ngIf="isBrowser" class="monthly-planner-container">
+  <div class="grid-controls">
+    <button (click)="popOutGrid()" *ngIf="!popoutService.isGridPoppedOut()" class="btn-primary">Pop Out Grid</button>
+  </div>
+
+  <wj-flex-grid
+    #flexGrid
+    [itemsSource]="gridData"
+    [autoGenerateColumns]="false"
+    style="height: 100%; width: 100%"
+  >
+    <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="day" header="Monthly"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="lat" header="Latitude"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="lng" header="Longitude"></wj-flex-grid-column>
+    <wj-flex-grid-column binding="color" header="Color"></wj-flex-grid-column>
+  </wj-flex-grid>
+</div>

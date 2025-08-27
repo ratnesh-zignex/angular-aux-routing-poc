@@ -57,6 +57,13 @@ export class NavigationService {
   selectedRoutes: string[] = [];
   primaryRoute: string = '/rp';
   mapEventSubject: Subject<any> = new Subject<any>(); // For map events
+
+  // // New properties for grid pop-out
+  // private _gridPopoutWindow: Window | null = null;
+  // private _gridOriginalParent: HTMLElement | null = null;
+  // private _gridComponentElement: HTMLElement | null = null; // Reference to the grid's DOM element
+  // private _isGridPoppedOut = new BehaviorSubject<boolean>(false);
+  // isGridPoppedOut$ = this._isGridPoppedOut.asObservable();
   constructor(private router: Router) {}
   // getCurrentState(): NavigationState {
   //   return this.navigationState.value;
@@ -210,7 +217,7 @@ export class NavigationService {
     ];
 
     console.log(
-      'mapGird path',
+      'Navigate FUll function coming from Default',
       Boolean(mapGridState.dayOfWeek),
       mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath
     );
@@ -257,7 +264,6 @@ export class NavigationService {
   }
 
   updateSelectedRoutes(routes: string[]) {
-    console.log('Updating selected routes:', routes);
     this.selectedRoutes = routes;
     // this.updateSidebarState({ selectedRoutes: routes });
   }
@@ -288,5 +294,54 @@ export class NavigationService {
     };
     // This will trigger the navigateFull method in NavigationService
     this.navigateFull(defaultSidebarState, defaultMapGridState);
+  }
+
+  parseUrlForMapGridState(url: string): MapGridState {
+    const defaultState: MapGridState = {
+      view: 'daily',
+      dayOfWeek: '',
+      selectedRoutes: [],
+      mapId: 'main',
+    };
+
+    try {
+      const urlTree = this.router.parseUrl(url);
+      const mapgridOutlet =
+        urlTree.root.children['primary'].children['mapgrid'];
+
+      if (!mapgridOutlet) return defaultState;
+
+      // Extract view
+      const view = mapgridOutlet.segments[1]?.path || 'daily';
+
+      // Extract grid outlet
+      const gridOutlet = mapgridOutlet.children['grid'];
+      let dayOfWeek = '';
+      let selectedRoutes: string[] = [];
+
+      if (gridOutlet && gridOutlet.segments.length > 1) {
+        dayOfWeek = gridOutlet.segments[1].path;
+        if (gridOutlet.segments.length > 2) {
+          selectedRoutes = gridOutlet.segments[2].path.split(',');
+        }
+      }
+
+      // Extract map outlet
+      const mapOutlet = mapgridOutlet.children['map'];
+      let mapId = 'main';
+      if (mapOutlet && mapOutlet.segments.length > 1) {
+        mapId = mapOutlet.segments[1].path;
+      }
+
+      return {
+        view,
+        dayOfWeek,
+        selectedRoutes,
+        mapId,
+      };
+    } catch (error) {
+      console.error('Error parsing URL for map grid state:', error);
+      return defaultState;
+    }
   }
 }
