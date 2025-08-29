@@ -61,7 +61,7 @@ export class MapComponent implements AfterViewInit, OnInit {
     private el: ElementRef,
     private route: ActivatedRoute,
     public navBar: NavigationService,
-    private popoutService: GridPopoutService,
+    public popoutService: GridPopoutService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -113,14 +113,14 @@ export class MapComponent implements AfterViewInit, OnInit {
     );
     // Listen for gridDataUpdated events from pop-out
     this.subscriptions.add(
-      this.popoutService.gridDataUpdated$.subscribe((data) => {
+      this.popoutService.gridDataUpdated$.subscribe((points) => {
         console.log(
           'MapComponent received gridDataUpdated from pop-out:',
-          data
+          points
         );
-        if (data.points) {
+        if (points) {
           // Update map points based on the grid's data
-          this.points = data.points;
+          this.points = points;
           this.updateMapFeatures();
         }
       })

@@ -1,0 +1,100 @@
+.planner-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.grid-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 1px 1px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  flex-shrink: 0;
+}
+
+.btn-primary {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #0056b3;
+  }
+
+  &:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+}
+
+.popout-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  color: #856404;
+
+  .indicator-text {
+    font-size: 14px;
+    font-weight: 500;
+  }
+}
+
+.grid-wrapper {
+  flex: 1;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.grid-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  margin: 20px;
+  border-radius: 8px;
+
+  .placeholder-content {
+    text-align: center;
+    color: #6c757d;
+
+    .placeholder-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    h3 {
+      margin: 0 0 12px 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 8px 0;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+  }
+}
+
+// Ensure Wijmo grid takes full height
+:host ::ng-deep {
+  .wj-flexgrid {
+    height: 100% !important;
+  }
+}

@@ -1,22 +1,30 @@
 <div *ngIf="isBrowser" class="planner-container">
-  <div class="grid-controls">
-    <button (click)="popOutGrid()" *ngIf="!popoutService.isGridPoppedOut()" class="btn-primary">Pop Out Grid</button>
-    <!-- The "Put Grid Back" button will be in the pop-out window -->
+  <!-- Grid Controls - Only show in main window, not in popout mode -->
+  <div class="grid-controls" *ngIf="!isPopoutMode">
+    <button 
+      (click)="popOutGrid()" 
+      *ngIf="!popoutService.isGridPoppedOut()" 
+      class="btn-primary">
+      Pop Out Grid
+    </button>
   </div>
-  <wj-flex-grid
-    #flexGrid
-    [itemsSource]="gridData"
-    *ngIf="showGrid || popoutService.isGridPoppedOut()"
-    [autoGenerateColumns]="false"
-    [columnGroups]="columns"
-    style="height: 100%; width: 100%"
-  >
-    <!-- <wj-flex-grid-column binding="route" header="Route"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="stop" header="Stop"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="passengers" header="Passengers"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="day" header="Day of Week"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="lat" header="Latitude"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="lng" header="Longitude"></wj-flex-grid-column>
-    <wj-flex-grid-column binding="color" header="Color"></wj-flex-grid-column> -->
-  </wj-flex-grid>
+
+  <!-- Grid Section - Hide in main window when popped out -->
+  <div class="grid-wrapper" *ngIf="!popoutService.isGridPoppedOut() || isPopoutMode">
+    <wj-flex-grid
+      #flexGrid
+      [itemsSource]="gridData"
+      [autoGenerateColumns]="false"
+      [columnGroups]="columns"
+      style="height: 100%; width: 100%"
+    >
+      <!-- <wj-flex-grid-column binding="route" header="Route" [isReadOnly]="true"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="stop" header="Stop" [isReadOnly]="true"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="passengers" header="Passengers" [isReadOnly]="true"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="day" header="Day of Week" [isReadOnly]="true"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="lat" header="Latitude" [isReadOnly]="false"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="lng" header="Longitude" [isReadOnly]="false"></wj-flex-grid-column>
+      <wj-flex-grid-column binding="color" header="Color" [isReadOnly]="true"></wj-flex-grid-column> -->
+    </wj-flex-grid>
+  </div>
 </div>

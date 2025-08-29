@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   Inject,
+  Input,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
@@ -15,6 +16,7 @@ import { NavigationService } from '../../shared/services/navigation.service';
 import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 import { FlexGrid } from '@grapecity/wijmo.grid';
 import { GridPopoutService } from '../../shared/services/grid-popout.service';
+import { MapPoint } from '../../shared/interfaces/map-interfaces';
 @Component({
   selector: 'app-planner',
   standalone: true,
@@ -23,7 +25,7 @@ import { GridPopoutService } from '../../shared/services/grid-popout.service';
   styleUrl: './planner.component.scss',
 })
 export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
-  gridData: any[] = [];
+  gridData: MapPoint[] = [];
   columns: any[] = [
     { binding: 'route', header: 'Route' },
     { binding: 'stop', header: 'Stop' },
@@ -39,34 +41,22 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   destroy$ = new Subject<void>();
   @ViewChild('flexGrid') flexGrid!: FlexGrid; // Reference to the Wijmo grid instance
   isBrowser: boolean = false;
-  // Add a flag to control grid rendering
-  showGrid: boolean = true; // Initially show the grid
+  @Input() isPopoutMode: boolean = false; // Detect if running in popout mode
   constructor(
     private route: ActivatedRoute,
     public navService: NavigationService,
     public popoutService: GridPopoutService,
-    private el: ElementRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (this.isBrowser) {
-      this.popoutService.setGridComponentElement(this.el.nativeElement); // Store reference to this component's DOM element
-      this.route.params
-        .pipe(
-          distinctUntilChanged(),
-          filter(() => !this.isNavigating),
-          takeUntil(this.destroy$)
-        )
-        .subscribe((params) => {
-          this.routes = params['routes'] ? params['routes'].split(',') : [];
-          this.dayOfWeek = params['dayOfWeek'];
-          this.updateGridDataAndMap();
-          this.navService.updateMapGridState({
-            selectedRoutes: this.routes,
-            dayOfWeek: this.dayOfWeek,
-          });
-        });
+      console.log(
+        'planner mode',
+        this.isPopoutMode,
+        this.popoutService.isGridPoppedOut()
+      );
+      // Listen for map events from NavigationService (for map-to-grid updates)
       this.navService.mapEventSubject
         .pipe(takeUntil(this.destroy$))
         .subscribe((event) => {
@@ -75,90 +65,118 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           }
         });
     }
-    // this.route.params
-    //   .pipe(
-    //     distinctUntilChanged(), // Only emit when params actually change
-    //     filter(() => !this.isNavigating), // Prevent navigation during navigation
-    //     takeUntil(this.destroy$)
-    //   )
-    //   .subscribe((params) => {
-    //     this.routes = params['routes'] ? params['routes'].split(',') : [];
-    //     this.dayOfWeek = params['dayOfWeek'];
-    //     if (this.routes.length) {
-    //       this.gridData = this.routes.map((route: string) => ({
-    //         route,
-    //         stop: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
-    //         day: this.dayOfWeek,
-    //         passengers: Math.floor(Math.random() * 50),
-    //       }));
-    //       const points = this.routes.map((route: string, idx: number) => ({
-    //         route,
-    //         lat: 40.7128 + 0.01 * idx,
-    //         lng: -74.006 + 0.01 * idx,
-    //         color: 'red',
-    //       }));
-    //       console.log(this.gridData, points);
-    //       this.navService.mapEventSubject.next({ points: points });
-    //     } else {
-    //       // Clear grid and map when no routes
-    //       this.gridData = [];
-    //       this.navService.mapEventSubject.next({ points: [] });
-    //     }
-    //   });
   }
 
   ngOnInit() {
     if (this.isBrowser) {
-      // Listen for messages from the pop-out window to put grid back
-      this.popoutService.putGridBack$
+      this.popoutService.setGridPoppedOut(this.isPopoutMode);
+      console.log(
+        'planner mode',
+        this.isPopoutMode,
+        this.popoutService.isGridPoppedOut()
+      );
+      // Listen for grid data updates from popout
+      this.popoutService.gridDataUpdated$
         .pipe(takeUntil(this.destroy$))
-        .subscribe(() => {
-          this.putGridBack();
+        .subscribe((points) => {
+          console.log('Main grid: Received data from popout:', points);
+          this.gridData = [...points];
+          if (this.flexGrid) {
+            this.flexGrid.refresh();
+          }
+          // Also update the map
+          this.navService.mapEventSubject.next({ points: this.gridData });
         });
+      // Listen for put grid back messages (only for main window)
+      if (!this.isPopoutMode) {
+        this.popoutService.putGridBack$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((data) => {
+            console.log('Main grid: Grid put back with data:', data);
+            if (data.points && data.points.length > 0) {
+              this.gridData = [...data.points];
+              this.setupFlexGridEvents();
+              if (this.flexGrid) {
+                this.flexGrid.refresh();
+              }
+            }
+          });
+        console.log('grid in main window planner');
+        // Only subscribe to route params if NOT in popout mode
+        this.route.params
+          .pipe(
+            distinctUntilChanged(),
+            filter(() => !this.isNavigating),
+            takeUntil(this.destroy$)
+          )
+          .subscribe((params) => {
+            console.log(
+              'main window code for grid is running',
+              this.isPopoutMode
+            );
+            this.routes = params['routes'] ? params['routes'].split(',') : [];
+            this.dayOfWeek = params['dayOfWeek'];
+            this.updateGridDataAndMap();
+            this.navService.updateMapGridState({
+              selectedRoutes: this.routes,
+              dayOfWeek: this.dayOfWeek,
+            });
+          });
+      } else if (this.isPopoutMode) {
+        this.popoutService.initializeGridData$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((points) => {
+            console.log('PopoutGrid: Received initialization data:', points);
+            this.updateGridDataFromMapPoints(points, true);
+            // // Update navigation service with the received data
+            // this.navService.mapEventSubject.next({ points });
+          });
+      }
     }
   }
   ngAfterViewInit() {
-    if (this.isBrowser) {
-      // Store the original parent of the grid component
-      // This is the parent of the <app-planner> tag, which is the router-outlet
-      if (!this.popoutService.getGridOriginalParent()) {
-        this.popoutService.setGridOriginalParent(
-          this.el.nativeElement.parentElement!
-        );
-      }
-      // Only set up event handler if flexGrid is available (i.e., not hidden)
-      this.setupFlexGridEvents();
-      // // Listen for cell edit events to update map
-      // if (this.flexGrid) {
-      //   this.flexGrid.cellEditEnded.addHandler((s, e) => {
-      //     const item = s.rows[e.row].dataItem;
-      //     if (
-      //       e.col === this.flexGrid.columns.getColumn('lat')?.index ||
-      //       e.col === this.flexGrid.columns.getColumn('lng')?.index
-      //     ) {
-      //       // Ensure lat/lng are numbers
-      //       item.lat = parseFloat(item.lat);
-      //       item.lng = parseFloat(item.lng);
-      //       if (!isNaN(item.lat) && !isNaN(item.lng)) {
-      //         this.updateMapWithGridChanges();
-      //       }
-      //     }
-      //   });
-      // }
+    if (this.isBrowser && this.flexGrid) {
+      // Set up cell edit handler
+      this.flexGrid.cellEditEnded.addHandler((s, e) => {
+        const item = s.rows[e.row].dataItem;
+        if (
+          e.col === this.flexGrid.columns.getColumn('lat')?.index ||
+          e.col === this.flexGrid.columns.getColumn('lng')?.index
+        ) {
+          item.lat = parseFloat(item.lat);
+          item.lng = parseFloat(item.lng);
+          if (!isNaN(item.lat) && !isNaN(item.lng)) {
+            console.log('Grid cell edited:', item);
+            this.updateMapWithGridChanges();
+          }
+        }
+      });
     }
   }
 
   updateGridDataAndMap() {
     if (this.routes.length) {
-      this.gridData = this.routes.map((route: string, idx: number) => ({
-        route,
-        stop: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
-        day: this.dayOfWeek,
-        passengers: Math.floor(Math.random() * 50),
-        lat: 40.7128 + 0.01 * idx,
-        lng: -74.006 + 0.01 * idx,
-        color: 'red',
-      }));
+      console.log(
+        'getting insdide update Grud Data and map for the popin window'
+      );
+      // Generate data for new routes or if no data exists
+      const newData = this.routes.map((route: string, idx: number) => {
+        const existingItem = this.gridData.find((item) => item.route === route);
+        if (existingItem) {
+          return existingItem; // Keep existing data
+        }
+        return {
+          route,
+          stop: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
+          day: this.dayOfWeek,
+          passengers: Math.floor(Math.random() * 50),
+          lat: 40.7128 + 0.01 * idx,
+          lng: -74.006 + 0.01 * idx,
+          color: 'red',
+        };
+      });
+      this.gridData = newData;
+      console.log(this.gridData);
       this.navService.mapEventSubject.next({ points: this.gridData });
     } else {
       this.gridData = [];
@@ -166,31 +184,55 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     }
   }
 
-  updateGridDataFromMapPoints(mapPoints: any[]) {
-    const updatedPointsMap = new Map(mapPoints.map((p) => [p.route, p]));
-    this.gridData = this.gridData.map((row) => {
-      const updatedPoint = updatedPointsMap.get(row.route);
-      if (updatedPoint) {
-        return {
-          ...row,
-          lat: updatedPoint.lat,
-          lng: updatedPoint.lng,
-          color: updatedPoint.color,
-        };
+  updateGridDataFromMapPoints(
+    mapPoints: any[],
+    initializedPopoutData: Boolean = false
+  ) {
+    if (mapPoints.length === 0) {
+      this.gridData = [];
+    } else if (initializedPopoutData) {
+      this.gridData = [...mapPoints];
+      this.popoutService.popoutGridData = this.gridData;
+    } else {
+      console.log('flex grid', this.flexGrid);
+      const updatedPointsMap = new Map(mapPoints.map((p) => [p.route, p]));
+      console.log(updatedPointsMap);
+      this.gridData = this.gridData.map((row) => {
+        const updatedPoint = updatedPointsMap.get(row.route);
+        if (updatedPoint) {
+          return {
+            ...row,
+            lat: updatedPoint.lat,
+            lng: updatedPoint.lng,
+            color: updatedPoint.color,
+          };
+        }
+        return row;
+      });
+      console.log(this.gridData);
+      this.popoutService.popoutGridData = this.gridData;
+      // Refresh Wijmo grid after data update
+      if (this.isBrowser && this.flexGrid) {
+        this.flexGrid.refresh();
       }
-      return row;
-    });
-    // Refresh Wijmo grid after data update
-    if (this.isBrowser && this.flexGrid) {
-      this.flexGrid.refresh();
     }
   }
 
   updateMapWithGridChanges() {
+    console.log('Updating map with grid changes:', this.gridData);
+    this.popoutService.popoutGridData = this.gridData;
+
+    // Send to map in main window
     // Send the current grid data (which includes updated lat/lng) to the map
     this.navService.mapEventSubject.next({ points: this.gridData });
-    // Also send to pop-out service if grid is popped out
-    if (this.popoutService.isGridPoppedOut()) {
+    // If in popout mode, send to main window
+    if (this.isPopoutMode) {
+      this.popoutService.sendMessage({
+        type: 'gridDataUpdated',
+        payload: { points: this.gridData },
+      });
+    } // If in main window and grid is popped out, send to popout
+    else if (this.popoutService.isGridPoppedOut()) {
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
         payload: { points: this.gridData },
@@ -198,133 +240,81 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     }
   }
 
+  // Method to pop out the grid (only available in main window)
   popOutGrid() {
-    if (!this.isBrowser) return;
-    const gridElement = this.popoutService.getGridComponentElement();
-    const originalParent = this.popoutService.getGridOriginalParent();
-    if (gridElement && originalParent) {
-      // 1. Hide the grid in the main app immediately
-      this.showGrid = false;
-      // Create a new window
-      const newWindow = window.open('', 'Grid', 'width=800,height=600');
-      if (newWindow) {
-        const mapGridState = this.navService.getCurrentMapGridState();
-        this.popoutService.setGridPopoutWindow(newWindow);
-        newWindow.document.title = `Grid Popout - ${mapGridState.view}_${mapGridState.dayOfWeek}_${mapGridState.selectedRoutes}`;
-        // Copy styles from the main document to the new window
-        const styleSheets = Array.from(document.styleSheets);
-        styleSheets.forEach((sheet) => {
-          try {
-            const style = newWindow.document.createElement('style');
-            style.textContent = Array.from(sheet.cssRules)
-              .map((rule) => rule.cssText)
-              .join('\n');
-            newWindow.document.head.appendChild(style);
-          } catch (e) {
-            console.warn('Could not copy stylesheet:', e);
-          }
+    if (
+      !this.isBrowser ||
+      this.isPopoutMode ||
+      this.popoutService.isGridPoppedOut()
+    )
+      return;
+    const sidebarState = this.navService.getCurrentMapGridState();
+    const view = sidebarState.view;
+    const routesParam = this.routes.length > 0 ? this.routes.join(',') : '';
+
+    // Construct the popout URL
+    const popoutUrl =
+      this.dayOfWeek && routesParam
+        ? `popout-grid/${view}/${this.dayOfWeek}/${routesParam}`
+        : 'popout-grid';
+    // Open new window with proper URL
+    const newWindow = window.open(
+      popoutUrl,
+      'GridPopout',
+      'width=1000,height=700'
+    );
+    if (newWindow) {
+      this.popoutService.setGridPopoutWindow(newWindow);
+
+      // Send current grid data to the popout window
+      // We'll do this after a short delay to ensure the popout window is ready
+      setTimeout(() => {
+        this.popoutService.sendMessage({
+          type: 'initializeGridData',
+          payload: { points: this.gridData },
         });
-        // Create a container div in the new window's body
-        const popoutContainer = newWindow.document.createElement('div');
-        popoutContainer.id = 'popout-grid-container';
-        popoutContainer.style.display = 'flex';
-        popoutContainer.style.flexDirection = 'column';
-        popoutContainer.style.height = '100%'; // Leave space for button
-        newWindow.document.body.appendChild(popoutContainer);
-
-        // Create a div for controls (including the put back button)
-        const controlsDiv = newWindow.document.createElement('div');
-        controlsDiv.style.padding = '10px';
-        controlsDiv.style.backgroundColor = '#f0f0f0';
-        controlsDiv.style.borderBottom = '1px solid #ccc';
-        controlsDiv.style.display = 'flex'; // Use flexbox for controls
-        controlsDiv.style.justifyContent = 'flex-start'; // Align button to start
-        // Create a button to put the grid back
-        const putBackButton = newWindow.document.createElement('button');
-        putBackButton.textContent = 'Put Grid Back';
-        putBackButton.style.cssText = `
-          padding: 8px 15px;
-          border: 1px solid #007bff;
-          border-radius: 4px;
-          background-color: #007bff;
-          color: white;
-          cursor: pointer;
-          font-size: 14px;
-        `;
-        controlsDiv.appendChild(putBackButton); // Append button to controlsDiv
-        // newWindow.document.body.appendChild(putBackButton);
-        // Append controlsDiv to popoutContainer
-        popoutContainer.appendChild(controlsDiv);
-
-        // Create a div to hold the grid itself
-        const gridWrapper = newWindow.document.createElement('div');
-        gridWrapper.style.flexGrow = '1'; // Make grid take remaining space
-        gridWrapper.style.overflow = 'auto'; // Add scroll if content overflows
-        popoutContainer.appendChild(gridWrapper); // Append gridWrapper to popoutContainer
-
-        putBackButton.onclick = () => {
-          this.putGridBack();
-          newWindow.close(); // Close the pop-out window
-        };
-
-        // Append the grid component's native element to the gridWrapper
-        gridWrapper.appendChild(gridElement);
-
-        // 3. Re-initialize/refresh the Wijmo grid after moving its DOM
-        // This is crucial for it to re-establish its internal DOM references
-        this.setupFlexGridEvents(); // Re-attach events if needed
-        // // Append the grid component's native element to the new window's container
-        // popoutContainer.appendChild(gridElement);
-        // Refresh the Wijmo grid to ensure it renders correctly in the new context
-        if (this.flexGrid) {
-          this.flexGrid.refresh();
+      }, 1000);
+      // Handle window close event
+      const checkClosed = setInterval(() => {
+        if (newWindow.closed) {
+          clearInterval(checkClosed);
+          this.popoutService.setGridPopoutWindow(null);
+          console.log('Popout window was closed');
         }
-        // Handle window close event
-        newWindow.onbeforeunload = () => {
-          // If the user closes the window manually, put the grid back
-          if (this.popoutService.isGridPoppedOut()) {
-            this.putGridBack();
-          }
-          // Important: Send a message back to the main app to clear its state
-          // if the pop-out is closed by the user directly (e.g., browser tab close)
-          this.popoutService.sendMessage({ type: 'putGridBack' });
-        };
-      }
-    } else {
-      // If window.open fails (e.g., pop-up blocker), show grid again
-      this.showGrid = true;
+      }, 1000);
     }
   }
 
-  putGridBack() {
-    if (!this.isBrowser) return;
-    const gridElement = this.popoutService.getGridComponentElement();
-    const originalParent = this.popoutService.getGridOriginalParent();
-    const popoutWindow = this.popoutService.getGridPopoutWindow();
-    if (gridElement && originalParent) {
-      // Append the grid component's native element back to its original parent
-      originalParent.appendChild(gridElement);
+  // putGridBack() {
+  //   if (!this.isBrowser) return;
+  //   const gridElement = this.popoutService.getGridComponentElement();
+  //   const originalParent = this.popoutService.getGridOriginalParent();
+  //   const popoutWindow = this.popoutService.getGridPopoutWindow();
+  //   if (gridElement && originalParent) {
+  //     // Append the grid component's native element back to its original parent
+  //     originalParent.appendChild(gridElement);
 
-      // 2. Show the grid in the main app again
-      this.showGrid = true;
+  //     // 2. Show the grid in the main app again
+  //     this.showGrid = true;
 
-      // 3. Re-initialize/refresh the Wijmo grid after moving its DOM
-      this.setupFlexGridEvents(); // Re-attach events if needed
-      // Refresh the Wijmo grid
-      if (this.flexGrid) {
-        this.flexGrid.refresh();
-      }
-      // Clear pop-out state
-      this.popoutService.setGridPopoutWindow(null);
-      if (popoutWindow && !popoutWindow.closed) {
-        popoutWindow.close();
-      }
-    }
-  }
+  //     // 3. Re-initialize/refresh the Wijmo grid after moving its DOM
+  //     this.setupFlexGridEvents(); // Re-attach events if needed
+  //     // Refresh the Wijmo grid
+  //     if (this.flexGrid) {
+  //       this.flexGrid.refresh();
+  //     }
+  //     // Clear pop-out state
+  //     this.popoutService.setGridPopoutWindow(null);
+  //     if (popoutWindow && !popoutWindow.closed) {
+  //       popoutWindow.close();
+  //     }
+  //   }
+  // }
 
   setupFlexGridEvents() {
     // Use a timeout to ensure flexGrid is rendered if showGrid was true
     setTimeout(() => {
+      console.log(this.flexGrid);
       if (this.flexGrid) {
         this.flexGrid.cellEditEnded.addHandler((s, e) => {
           const item = s.rows[e.row].dataItem;
@@ -340,22 +330,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           }
         });
       }
+      console.log(this.flexGrid);
     }, 0); // Small timeout to ensure rendering
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-    if (this.isBrowser) {
-      // If the main app is destroyed while grid is popped out, put it back
-      // This ensures the DOM element is returned before the component is fully destroyed.
-      if (this.popoutService.isGridPoppedOut()) this.putGridBack();
-
-      // Also, explicitly tell the popout service that the grid component is gone
-      // This helps prevent issues if the popout window tries to send messages
-      // to a non-existent component.
-      this.popoutService.setGridComponentElement(null);
-      this.popoutService.setGridOriginalParent(null);
-    }
   }
 }

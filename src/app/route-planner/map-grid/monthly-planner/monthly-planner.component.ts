@@ -53,7 +53,7 @@ export class MonthlyPlannerComponent
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (this.isBrowser) {
-      this.popoutService.setGridComponentElement(this.el.nativeElement);
+      // this.popoutService.setGridComponentElement(this.el.nativeElement);
 
       this.route.params
         .pipe(
@@ -89,11 +89,11 @@ export class MonthlyPlannerComponent
 
   ngAfterViewInit() {
     if (this.isBrowser) {
-      if (!this.popoutService.getGridOriginalParent()) {
-        this.popoutService.setGridOriginalParent(
-          this.el.nativeElement.parentElement!
-        );
-      }
+      // if (!this.popoutService.getGridOriginalParent()) {
+      //   this.popoutService.setGridOriginalParent(
+      //     this.el.nativeElement.parentElement!
+      //   );
+      // }
 
       if (this.flexGrid) {
         this.flexGrid.cellEditEnded.addHandler((s, e) => {
@@ -124,10 +124,10 @@ export class MonthlyPlannerComponent
         lng: -74.006 + 0.01 * idx,
         color: 'red',
       }));
-      this.navService.updateMapGridState({
-        selectedRoutes: this.routes,
-        dayOfWeek: this.dayOfWeek,
-      });
+      // this.navService.updateMapGridState({
+      //   selectedRoutes: this.routes,
+      //   dayOfWeek: this.dayOfWeek,
+      // });
       this.navService.mapEventSubject.next({ points: this.gridData });
     } else {
       this.gridData = [];
@@ -167,88 +167,88 @@ export class MonthlyPlannerComponent
   popOutGrid() {
     if (!this.isBrowser) return;
 
-    const gridElement = this.popoutService.getGridComponentElement();
-    const originalParent = this.popoutService.getGridOriginalParent();
+    // const gridElement = this.popoutService.getGridComponentElement();
+    // const originalParent = this.popoutService.getGridOriginalParent();
 
-    if (gridElement && originalParent) {
-      const newWindow = window.open('', '_blank', 'width=800,height=600');
-      if (newWindow) {
-        this.popoutService.setGridPopoutWindow(newWindow);
+    // if (gridElement && originalParent) {
+    //   const newWindow = window.open('', '_blank', 'width=800,height=600');
+    //   if (newWindow) {
+    //     this.popoutService.setGridPopoutWindow(newWindow);
 
-        const styleSheets = Array.from(document.styleSheets);
-        styleSheets.forEach((sheet) => {
-          try {
-            const style = newWindow.document.createElement('style');
-            style.textContent = Array.from(sheet.cssRules)
-              .map((rule) => rule.cssText)
-              .join('\n');
-            newWindow.document.head.appendChild(style);
-          } catch (e) {
-            console.warn('Could not copy stylesheet:', e);
-          }
-        });
+    //     const styleSheets = Array.from(document.styleSheets);
+    //     styleSheets.forEach((sheet) => {
+    //       try {
+    //         const style = newWindow.document.createElement('style');
+    //         style.textContent = Array.from(sheet.cssRules)
+    //           .map((rule) => rule.cssText)
+    //           .join('\n');
+    //         newWindow.document.head.appendChild(style);
+    //       } catch (e) {
+    //         console.warn('Could not copy stylesheet:', e);
+    //       }
+    //     });
 
-        const popoutContainer = newWindow.document.createElement('div');
-        popoutContainer.id = 'popout-grid-container';
-        popoutContainer.style.width = '100%';
-        popoutContainer.style.height = 'calc(100% - 50px)';
-        newWindow.document.body.appendChild(popoutContainer);
+    //     const popoutContainer = newWindow.document.createElement('div');
+    //     popoutContainer.id = 'popout-grid-container';
+    //     popoutContainer.style.width = '100%';
+    //     popoutContainer.style.height = 'calc(100% - 50px)';
+    //     newWindow.document.body.appendChild(popoutContainer);
 
-        const putBackButton = newWindow.document.createElement('button');
-        putBackButton.textContent = 'Put Grid Back';
-        putBackButton.style.cssText = `
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          padding: 10px 20px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          background-color: #007bff;
-          color: white;
-          cursor: pointer;
-          z-index: 1000;
-        `;
-        newWindow.document.body.appendChild(putBackButton);
+    //     const putBackButton = newWindow.document.createElement('button');
+    //     putBackButton.textContent = 'Put Grid Back';
+    //     putBackButton.style.cssText = `
+    //       position: absolute;
+    //       top: 10px;
+    //       left: 10px;
+    //       padding: 10px 20px;
+    //       border: 1px solid #ccc;
+    //       border-radius: 4px;
+    //       background-color: #007bff;
+    //       color: white;
+    //       cursor: pointer;
+    //       z-index: 1000;
+    //     `;
+    //     newWindow.document.body.appendChild(putBackButton);
 
-        putBackButton.onclick = () => {
-          this.putGridBack();
-          newWindow.close();
-        };
+    //     putBackButton.onclick = () => {
+    //       this.putGridBack();
+    //       newWindow.close();
+    //     };
 
-        popoutContainer.appendChild(gridElement);
+    //     popoutContainer.appendChild(gridElement);
 
-        if (this.flexGrid) {
-          this.flexGrid.refresh();
-        }
+    //     if (this.flexGrid) {
+    //       this.flexGrid.refresh();
+    //     }
 
-        newWindow.onbeforeunload = () => {
-          if (this.popoutService.isGridPoppedOut()) {
-            this.putGridBack();
-          }
-        };
-      }
-    }
+    //     newWindow.onbeforeunload = () => {
+    //       if (this.popoutService.isGridPoppedOut()) {
+    //         this.putGridBack();
+    //       }
+    //     };
+    //   }
+    // }
   }
 
   putGridBack() {
     if (!this.isBrowser) return;
 
-    const gridElement = this.popoutService.getGridComponentElement();
-    const originalParent = this.popoutService.getGridOriginalParent();
-    const popoutWindow = this.popoutService.getGridPopoutWindow();
+    // const gridElement = this.popoutService.getGridComponentElement();
+    // const originalParent = this.popoutService.getGridOriginalParent();
+    // const popoutWindow = this.popoutService.getGridPopoutWindow();
 
-    if (gridElement && originalParent) {
-      originalParent.appendChild(gridElement);
+    // if (gridElement && originalParent) {
+    //   originalParent.appendChild(gridElement);
 
-      if (this.flexGrid) {
-        this.flexGrid.refresh();
-      }
+    //   if (this.flexGrid) {
+    //     this.flexGrid.refresh();
+    //   }
 
-      this.popoutService.setGridPopoutWindow(null);
-      if (popoutWindow && !popoutWindow.closed) {
-        popoutWindow.close();
-      }
-    }
+    //   this.popoutService.setGridPopoutWindow(null);
+    //   if (popoutWindow && !popoutWindow.closed) {
+    //     popoutWindow.close();
+    //   }
+    // }
   }
 
   ngOnDestroy(): void {

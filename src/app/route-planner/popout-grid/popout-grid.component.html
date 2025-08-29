@@ -1,0 +1,48 @@
+<div *ngIf="isBrowser" class="popout-grid-container">
+  <!-- Header Section -->
+  <div class="popout-header">
+    <div class="header-content">
+      <h2 class="popout-title">{{ getPlannerTypeLabel(plannerType) }}</h2>
+      <div class="header-controls">
+        <button (click)="putGridBack()" class="btn-put-back">
+          <span class="btn-icon">↩</span>
+          Put Grid Back
+        </button>
+      </div>
+    </div>
+    <div class="grid-info">
+      <span class="info-item">{{ dayOfWeek }}</span>
+      <span class="info-separator">•</span>
+      <span class="info-item">Routes: {{ routes.length > 0 ? routes.join(', ') : 'None' }}</span>
+    </div>
+  </div>
+
+  <!-- Grid Section - Dynamically load the appropriate planner component -->
+  <div class="grid-content" *ngIf="isInitialized">
+    <!-- Route Planner Grid -->
+    <app-planner 
+      *ngIf="plannerType === 'rp'" 
+      [isPopoutMode]="true">
+    </app-planner>
+    
+    <!-- Monthly Planner Grid -->
+    <!-- <app-monthly-planner 
+      *ngIf="plannerType === 'mp'" 
+      [isPopoutMode]="true">
+    </app-monthly-planner>
+     -->
+    <!-- Future: Strategic Planner Grid -->
+    <!-- <app-strategic-planner 
+      *ngIf="plannerType === 'sp'" 
+      [isPopoutMode]="true">
+    </app-strategic-planner> -->
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-state" *ngIf="!isInitialized">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p>Loading grid data...</p>
+    </div>
+  </div>
+</div>

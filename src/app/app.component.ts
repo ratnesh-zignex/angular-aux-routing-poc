@@ -1,4 +1,10 @@
-import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import {
+  Component,
+  Inject,
+  OnDestroy,
+  OnInit,
+  PLATFORM_ID,
+} from '@angular/core';
 import {
   ActivatedRoute,
   NavigationEnd,
@@ -42,11 +48,13 @@ export class AppComponent implements OnInit, OnDestroy {
         console.warn('Navigation error:', event);
         if (event.error.message.includes('Cannot match any routes'))
           this.navService.navigateToDefault();
+      } else if (event instanceof NavigationEnd) {
+        console.log('app compponent nav end', event);
       }
     });
     console.log('app compponent', this.router.url);
     if (this.isBrowser)
-      // This fires when the main window is about to be closed or refreshed
+      // This fires when navigateMapGridthe main window is about to be closed or refreshed
       window.addEventListener('beforeunload', this.handleBeforeUnload);
   }
 
