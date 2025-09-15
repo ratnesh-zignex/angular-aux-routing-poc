@@ -6,12 +6,13 @@ import {
   OnInit,
   PLATFORM_ID,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { GridPopoutService } from '../shared/services/grid-popout.service';
 import { NavigationService } from '../shared/services/navigation.service';
 import { MapPoint } from '../shared/interfaces/map-interfaces';
 import { PlannerComponent } from '../map-grid/planner/planner.component';
+import { customer } from '../../protos/customer/customer';
 
 @Component({
   selector: 'app-popout-grid',
@@ -33,9 +34,22 @@ export class PopoutGridComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private navService: NavigationService,
     private popoutService: GridPopoutService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private router: Router
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+    this.popoutService.gridDataUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((points) => {
+        console.log(' state change for popout:', points);
+        // Also update the map
+      
+        const popoutUrl =
+          points.state.dayOfWeek && points.state.selectedRoutes
+            ? `popout-grid/${points.state.view}/${points.state.dayOfWeek}/${points.state.selectedRoutes}`
+            : 'popout-grid';
+        this.router.navigate([popoutUrl]);
+      });
   }
   ngOnInit() {
     if (this.isBrowser) {
@@ -106,7 +120,8 @@ export class PopoutGridComponent implements OnInit, OnDestroy {
   updateNavigationService() {}
   putGridBack() {
     // Get current grid data from the navigation service
-    const currentPoints: MapPoint[] = this.popoutService.popoutGridData;
+    const currentPoints: customer.ICustomer[] =
+      this.popoutService.popoutGridData;
 
     // Send message to main window to put grid back
     this.popoutService.sendMessage({

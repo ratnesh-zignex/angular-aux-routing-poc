@@ -7,6 +7,9 @@ import {
   SidebarState,
 } from '../../../shared/services/navigation.service';
 import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
+import { HttpService } from '../../../shared/services/http.service';
+import { HttpResponse } from '@angular/common/http';
+import { IZRouteDataDOW } from '../../../shared/interfaces/interfaces';
 
 @Component({
   selector: 'app-dp',
@@ -48,11 +51,13 @@ export class DpComponent implements OnInit, OnDestroy {
   selectedRoutes: string[] = [];
   isNavigating: boolean = false;
   destroy$ = new Subject<void>();
+  routes: { routeNo: string; custCnt: number }[] = [];
 
   constructor(
     private router: Router,
     public navService: NavigationService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private http: HttpService
   ) {
     this.route.params
       .pipe(
@@ -61,16 +66,20 @@ export class DpComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe((params) => {
-        console.log('dp params:', params);
-        const tabName = params['tabName'];
-        this.navService.changeTab(tabName);
-        this.tabName = tabName || 'routes';
+        if (
+          this.navService.operationUnitList.length &&
+          this.navService.routeTypeList.length
+        ) {
+          this.onTabChange(params['tabName']);
+        }
       });
   }
 
   ngOnInit() {
     this.navService.sidebarState$.subscribe((state) => {
       this.currentState = state;
+      console.log('state update');
+      this.getAvailableRoutes();
     });
   }
   onRouteToggle(routeName: string, event: Event) {
@@ -86,18 +95,35 @@ export class DpComponent implements OnInit, OnDestroy {
       );
     }
     this.currentState.selectedRoutes = newSelectedRoutes;
+    console.log(newSelectedRoutes);
     this.navService.updateSelectedRoutes(newSelectedRoutes);
   }
   onTabChange(tabName: string) {
     this.tabName = tabName;
     this.navService.changeTab(tabName);
   }
-  getAvailableRoutes(): string[] {
-    return this.routesByDay[this.currentState.dayOfWeek] || [];
+  async getAvailableRoutes(): Promise<void> {
+    const res: any = await this.http.getPromiseData('fetch_rt_no', {
+      accountId: 1000004,
+      opsCd: this.currentState.operationUnit,
+      rtTyp: this.currentState.routeType,
+      dow: this.currentState.dayOfWeek,
+    });
+    this.currentState.selectedRoutes = [];
+    if (res) {
+      this.routes = [];
+      const resp: IZRouteDataDOW[] = res;
+      const asyncnode: IZRouteDataDOW[] = resp;
+      this.navService.routesList = asyncnode;
+      resp.forEach((e) => {
+        this.routes.push({ routeNo: e.srvcOrdrRtNo, custCnt: e.custCnt });
+      });
+    }
+    //api.qa.zignexlogistics.com/zexrp/fetch_rt_no?accountId=1000004&opsCd=SMT_COMM&rtTyp=FL&dow=MONDAY
+    // return this.routesByDay[this.currentState.dayOfWeek] || [];
   }
   selectAll() {
-    const allRoutes = this.getAvailableRoutes();
-    this.navService.updateSelectedRoutes(allRoutes);
+    this.navService.updateSelectedRoutes(this.routes.map((e) => e.routeNo));
   }
   clearAll() {
     this.navService.updateSelectedRoutes([]);
@@ -108,6 +134,7 @@ export class DpComponent implements OnInit, OnDestroy {
   }
   ngOnDestroy(): void {
     this.destroy$.next();
+    //api.qa.zignexlogistics.com/zexrp/fetch_rt_no?accountId=1000004&opsCd=SMT_COMM&rtTyp=FL&dow=MONDAY
     this.destroy$.complete();
   }
 }

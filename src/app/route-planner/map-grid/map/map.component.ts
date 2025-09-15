@@ -36,6 +36,8 @@ import { MapEvent, MapPoint } from '../../shared/interfaces/map-interfaces';
 import { Geometry } from 'ol/geom';
 import Stroke from 'ol/style/Stroke';
 import { click } from 'ol/events/condition';
+import { customer } from '../../../protos/customer/customer';
+import { buffer } from 'ol/extent';
 
 @Component({
   selector: 'app-map',
@@ -45,7 +47,7 @@ import { click } from 'ol/events/condition';
   styleUrl: './map.component.scss',
 })
 export class MapComponent implements AfterViewInit, OnInit {
-  points: MapPoint[] = [];
+  points: customer.ICustomer[] = [];
   private map!: Map;
   private vectorLayer!: VectorLayer;
   mapId: string = 'map1'; // Default map ID, can be changed based on route params
@@ -68,15 +70,6 @@ export class MapComponent implements AfterViewInit, OnInit {
     if (this.isBrowser) {
       this.setupSubscriptions();
     }
-    // this.route.params.subscribe((params) => {
-    //   this.mapId = params['mapId'] || 'map1'; // Get map ID from URL or use default
-    //   console.log('Map component route params:', params);
-    //   this.navBar.updateMapGridState({ mapId: this.mapId });
-    // });
-    // this.navBar.mapEventSubject.subscribe((event) => {
-    //   this.points = event.points || [];
-    //   this.updateMapFeatures();
-    // });
   }
 
   setupSubscriptions() {
@@ -102,8 +95,8 @@ export class MapComponent implements AfterViewInit, OnInit {
       this.navBar.mapGridState$.subscribe((state: MapGridState) => {
         console.log('MapComponent received mapGridState update:', state);
         this.mapId = state.mapId;
-        this.broadcastPointsUpdate()
         this.updateMapFeatures();
+        this.broadcastPointsUpdate();
         // Only generate demo points if no points exist yet
         if (this.points.length === 0 && state.selectedRoutes.length > 0) {
           // this.points = this.generateDemoPoints(state.selectedRoutes);
@@ -120,7 +113,7 @@ export class MapComponent implements AfterViewInit, OnInit {
         );
         if (points) {
           // Update map points based on the grid's data
-          this.points = points;
+          this.points = points.points;
           this.updateMapFeatures();
         }
       })
@@ -156,17 +149,30 @@ export class MapComponent implements AfterViewInit, OnInit {
     // this.updateMapFeatures();
   }
 
-  updateMapFeatures() {
+  updateMapFeatures(color?: string) {
     if (this.vectorSource === undefined) return;
     this.vectorSource.clear();
     this.points.forEach((pt) => {
-      const feature = new Feature({
-        geometry: new Point(fromLonLat([pt.lng, pt.lat])),
-        route: pt.route,
-        color: pt.color,
-      });
-      this.vectorSource.addFeature(feature);
+      if (pt.lat && pt.lon) {
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([pt.lon, pt.lat])),
+          route: pt.rNo,
+          color,
+          cid: pt.cid,
+        });
+        this.vectorSource.addFeature(feature);
+      }
     });
+    // ✅ Now fit the map view to all features
+    if (this.vectorSource.getFeatures().length > 0) {
+      const extent = this.vectorSource.getExtent();
+      this.map.getView().fit(buffer(extent, 500), {
+        size: this.map.getSize(),
+        padding: [50, 50, 50, 50], // optional padding
+        maxZoom: 18, // avoid zooming in too much
+        duration: 500, // smooth animation
+      });
+    }
   }
   initializeMap(): void {
     this.vectorSource = new VectorSource();
@@ -218,7 +224,9 @@ export class MapComponent implements AfterViewInit, OnInit {
   }
 
   getFeatureStyle(feature: Feature<Geometry>): Style {
-    const color = feature.get('color') || 'red';
+    const route = feature.get('route');
+    const color = feature.get('color') || this.getColorForRoute(route);
+    // const color = feature.get('color') || 'red';
     return new Style({
       image: new CircleStyle({
         radius: 7,
@@ -253,11 +261,11 @@ export class MapComponent implements AfterViewInit, OnInit {
       const geometry = feature.getGeometry();
       if (geometry instanceof Point) {
         const coords = toLonLat(geometry.getCoordinates());
-        const routeName = feature.get('route');
+        const cid = feature.get('cid');
         console.log(
-          `Point ${routeName} dragged to: Lat ${coords[1]}, Lng ${coords[0]}`
+          `Point ${cid} dragged to: Lat ${coords[1]}, Lng ${coords[0]}`
         );
-        this.updatePointCoordinates(routeName, coords[1], coords[0]);
+        this.updatePointCoordinates(cid, coords[1], coords[0]);
         this.unsavedChanges = true;
         // Send updated points to both main app and pop-out
         this.broadcastPointsUpdate();
@@ -270,10 +278,10 @@ export class MapComponent implements AfterViewInit, OnInit {
   handleColorChange(feature: Feature<Geometry>): void {
     const routeName = feature.get('route');
     const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
-    const point = this.points.find((p) => p.route === routeName);
+    const point = this.points.find((p) => p.rNo === routeName);
     if (point) {
-      point.color = randomColor;
-      this.updateMapFeatures();
+      // point.color = randomColor;
+      this.updateMapFeatures(randomColor);
       this.unsavedChanges = true;
       // Send updated points to both main app and pop-out
       this.broadcastPointsUpdate();
@@ -281,11 +289,11 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.selectInteraction.getFeatures().clear();
   }
 
-  updatePointCoordinates(routeName: string, lat: number, lng: number): void {
-    const point = this.points.find((p) => p.route === routeName);
+  updatePointCoordinates(cid: string, lat: number, lng: number): void {
+    const point = this.points.find((p) => p.cid === cid);
     if (point) {
       point.lat = lat;
-      point.lng = lng;
+      point.lon = lng;
     }
   }
 
@@ -297,7 +305,7 @@ export class MapComponent implements AfterViewInit, OnInit {
       console.log('sending message to Grid popped out');
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
-        payload: { points: this.points },
+        payload: { points: this.points, state: {...this.navBar.getCurrentMapGridState()} },
       });
     }
   }
@@ -309,4 +317,23 @@ export class MapComponent implements AfterViewInit, OnInit {
   //     color: 'red',
   //   }));
   // }
+
+  getColorForRoute(route: string | number): string {
+    // Convert route to string
+    const str = ((route as number) * 1000).toString();
+
+    // Simple hash function → number
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    // Convert hash → hex color
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xff;
+      color += ('00' + value.toString(16)).slice(-2);
+    }
+    return color;
+  }
 }

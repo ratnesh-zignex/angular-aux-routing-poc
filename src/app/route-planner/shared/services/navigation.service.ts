@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core';
-import { Router, UrlTree } from '@angular/router';
+import { ActivatedRoute, Router, UrlTree } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
+import { lowerCase } from 'lodash';
+import { HttpService } from './http.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { IZRouteDataDOW } from '../interfaces/interfaces';
+import { customer } from '../../../protos/customer/customer';
 
 export interface SidebarState {
   plannerType: string;
@@ -16,6 +21,25 @@ export interface MapGridState {
   dayOfWeek: string;
   selectedRoutes: string[];
   mapId: string;
+}
+
+export interface IZOpsUnitData {
+  dataFormat?: string;
+  dataFormatCd?: string;
+  opsUnitCd: string;
+  opsUnitNm: string;
+  srvcRtTypCd?: string[];
+  name?: string;
+  checked?: boolean;
+}
+export interface IZRouteTypeResponse {
+  routeType: string;
+  dow: string[];
+  resiLite?: boolean;
+  resiFlag: boolean;
+  lob: string;
+  lobDesc: string;
+  rtTypColor: string;
 }
 @Injectable({
   providedIn: 'root',
@@ -33,11 +57,11 @@ export class NavigationService {
   // });
   // Separate states for sidebar and map-grid
   private sidebarState = new BehaviorSubject<SidebarState>({
-    plannerType: 'rp',
-    operationUnit: 'Comm',
-    routeType: 'FL',
-    dayOfWeek: 'Monday',
-    tabName: 'routes',
+    plannerType: '',
+    operationUnit: '',
+    routeType: '',
+    dayOfWeek: '',
+    tabName: '',
     selectedRoutes: [],
   });
 
@@ -51,20 +75,35 @@ export class NavigationService {
   public sidebarState$ = this.sidebarState.asObservable();
   public mapGridState$ = this.mapGridState.asObservable();
   // Legacy properties for backward compatibility
-  selectedDayOfWeek: string = 'Monday';
-  selectedOperationUnit: string = 'Comm';
-  selectedRouteType: string = 'FL';
+  selectedDayOfWeek: string = '';
+  selectedOperationUnit: string = '';
+  selectedRouteType: string = '';
   selectedRoutes: string[] = [];
   primaryRoute: string = '/rp';
   mapEventSubject: Subject<any> = new Subject<any>(); // For map events
-
+  appCode: string = '';
+  operationUnitList: IZOpsUnitData[] = [];
+  routeTypeList: IZRouteTypeResponse[] = [];
+  dowList: string[] = [];
+  routesList: IZRouteDataDOW[] = [];
+  gridloadedData: customer.ICustomer[] = [];
+  // private sidebarReadySubject = new BehaviorSubject<boolean>(false);
+  // sidebarReady$ = this.sidebarReadySubject.asObservable();
   // // New properties for grid pop-out
   // private _gridPopoutWindow: Window | null = null;
   // private _gridOriginalParent: HTMLElement | null = null;
   // private _gridComponentElement: HTMLElement | null = null; // Reference to the grid's DOM element
   // private _isGridPoppedOut = new BehaviorSubject<boolean>(false);
   // isGridPoppedOut$ = this._isGridPoppedOut.asObservable();
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private httpService: HttpService,
+    private route: ActivatedRoute
+  ) {
+    this.route.params.subscribe((params) => {
+      console.log('IN navigation', params);
+    });
+  }
   // getCurrentState(): NavigationState {
   //   return this.navigationState.value;
   // }
@@ -268,32 +307,87 @@ export class NavigationService {
     // this.updateSidebarState({ selectedRoutes: routes });
   }
 
-  loadData() {
+  async loadData() {
+    await this.getLoadedData();
     this.updateMapGridState({
       dayOfWeek: this.selectedDayOfWeek,
       selectedRoutes: this.selectedRoutes,
     });
     // this.syncStatesAndNavigate();
   }
-  navigateToDefault(plannerType: string = 'rp') {
-    // Get current states from NavigationService (which might have been initialized from URL)
-    // Define default states if current ones are not fully populated or if we want to enforce defaults
-    const defaultSidebarState: SidebarState = {
-      plannerType,
-      operationUnit: 'Comm',
-      routeType: 'FL',
-      dayOfWeek: 'Monday',
-      tabName: 'routes',
-      selectedRoutes: [], // Sidebar's selected routes (checkboxes)
-    };
-    const defaultMapGridState: MapGridState = {
-      view: 'daily',
-      dayOfWeek: '', // Map/Grid's dayOfWeek
-      selectedRoutes: [], // Map/Grid's loaded routes
-      mapId: 'main',
-    };
-    // This will trigger the navigateFull method in NavigationService
-    this.navigateFull(defaultSidebarState, defaultMapGridState);
+  async navigateToDefault(plannerType: string = 'rp') {
+    const res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
+      'fetch_usr_ops',
+      {
+        usrId: 'dev_login',
+        accountId: 1000004,
+        appName: this.appCode,
+      }
+    )) as IZOpsUnitData[];
+    console.log(res);
+    if (res.length) {
+      this.operationUnitList = [];
+      this.routeTypeList = [];
+      res.forEach((e) => {
+        if (e.srvcRtTypCd && e.srvcRtTypCd.length) {
+          this.operationUnitList.push(e);
+        }
+      });
+      if (this.operationUnitList[0]?.opsUnitCd) {
+        await this.getRouteType(this.operationUnitList[0]?.opsUnitCd);
+        // Get current states from NavigationService (which might have been initialized from URL)
+        // Define default states if current ones are not fully populated or if we want to enforce defaults
+        console.log(this.routeTypeList);
+        const defaultSidebarState: SidebarState = {
+          plannerType: lowerCase(this.appCode),
+          operationUnit: this.operationUnitList[0].opsUnitCd,
+          routeType: this.routeTypeList[0].routeType,
+          dayOfWeek: this.routeTypeList[0].dow[0],
+          tabName: 'routes',
+          selectedRoutes: [], // Sidebar's selected routes (checkboxes)
+        };
+        const defaultMapGridState: MapGridState = {
+          view: 'daily',
+          dayOfWeek: '', // Map/Grid's dayOfWeek
+          selectedRoutes: [], // Map/Grid's loaded routes
+          mapId: 'main',
+        };
+        // This will trigger the navigateFull method in NavigationService
+        this.navigateFull(defaultSidebarState, defaultMapGridState);
+      }
+    }
+    // });
+  }
+  async getRouteType(opsUnitCd: string): Promise<void> {
+    //api.qa.zignexlogistics.com/zexrp/getRtTypDowLob?accountId=1000004&opsCd=SMT_COMM
+    try {
+      const res: Record<string, IZRouteTypeResponse> =
+        await this.httpService.getPromiseData('getRtTypDowLob', {
+          accountId: 1000004,
+          opsCd: opsUnitCd,
+        });
+
+      this.routeTypeList = [];
+      this.selectedRouteType = '';
+      this.dowList = [];
+
+      if (res && Object.keys(res).length) {
+        for (const i in res) {
+          const curRes: IZRouteTypeResponse | undefined = res[i];
+          if (curRes) {
+            this.routeTypeList.push({
+              ...curRes,
+              routeType: i,
+              resiLite: curRes.resiFlag,
+            });
+          }
+        }
+      } else {
+        console.log('no route type');
+      }
+    } catch (error) {
+      console.error('Error fetching route type:', error);
+    }
   }
 
   parseUrlForMapGridState(url: string): MapGridState {
@@ -343,5 +437,46 @@ export class NavigationService {
       console.error('Error parsing URL for map grid state:', error);
       return defaultState;
     }
+  }
+  async getOpsUnit(): Promise<void> {
+    const res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
+      'fetch_usr_ops',
+      {
+        usrId: 'dev_login',
+        accountId: 1000004,
+        appName: this.appCode,
+      }
+    )) as IZOpsUnitData[];
+    if (res.length) {
+      this.operationUnitList = [];
+      this.routeTypeList = [];
+      res.forEach((e) => {
+        if (e.srvcRtTypCd && e.srvcRtTypCd.length) {
+          this.operationUnitList.push(e);
+        }
+      });
+    }
+  }
+
+  async getLoadedData() {
+    const payload = {
+      acctId: '1000004',
+      opsUnitCd: this.selectedOperationUnit,
+      srvcRtTypCd: [this.selectedRouteType],
+      srvcOrdrRtDow: [this.selectedDayOfWeek],
+      srvcOrdrRtNo: this.selectedRoutes,
+      userNm: 'dev_login',
+      lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
+    };
+    //api.qa.zignexlogistics.com/zexrp/ftCstmr
+    const res = await this.httpService.postPromiseData('ftCstmr', payload);
+
+    console.log('loaded data', res);
+    const loadedData = customer.CustomerResponse.decode(
+      new Uint8Array(res)
+    ).customerArray;
+    this.gridloadedData = loadedData;
+    this.mapEventSubject.next({ points: loadedData });
+    console.log('decoded data', loadedData);
   }
 }

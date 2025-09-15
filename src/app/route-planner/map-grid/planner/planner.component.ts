@@ -17,6 +17,7 @@ import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 import { FlexGrid } from '@grapecity/wijmo.grid';
 import { GridPopoutService } from '../../shared/services/grid-popout.service';
 import { MapPoint } from '../../shared/interfaces/map-interfaces';
+import { customer } from '../../../protos/customer/customer';
 @Component({
   selector: 'app-planner',
   standalone: true,
@@ -25,15 +26,60 @@ import { MapPoint } from '../../shared/interfaces/map-interfaces';
   styleUrl: './planner.component.scss',
 })
 export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
-  gridData: MapPoint[] = [];
+  gridData: customer.ICustomer[] = [];
   columns: any[] = [
-    { binding: 'route', header: 'Route' },
-    { binding: 'stop', header: 'Stop' },
-    { binding: 'passengers', header: 'Passengers' },
-    { binding: 'day', header: 'Day of Week' },
-    { binding: 'lat', header: 'Latitude', isReadOnly: false, format: 'n6' }, // Editable
-    { binding: 'lng', header: 'Longitude', isReadOnly: false, format: 'n6' }, // Editable
-    { binding: 'color', header: 'Color' },
+    {
+      binding: 'cid',
+      header: 'Customer #',
+      width: 150,
+      isReadOnly: true,
+    },
+    {
+      binding: 'rNo',
+      header: 'Route #',
+      width: 80,
+      isReadOnly: true,
+    },
+    {
+      binding: 'addr',
+      header: 'Address',
+      width: '*',
+      minWidth: 150,
+      isReadOnly: true,
+    },
+    {
+      binding: 'cty',
+      header: 'City',
+      width: 95,
+      isReadOnly: true,
+    },
+    {
+      binding: 'state',
+      header: 'State',
+      width: 67,
+      isReadOnly: true,
+    },
+    {
+      binding: 'lat',
+      header: 'Latitude',
+      width: 90,
+      isReadOnly: false,
+      format: 'n6',
+    },
+    {
+      binding: 'lon',
+      header: 'Longitude',
+      width: 100,
+      isReadOnly: false,
+      format: 'n6',
+    },
+    // { binding: 'route', header: 'Route' },
+    // { binding: 'stop', header: 'Stop' },
+    // { binding: 'passengers', header: 'Passengers' },
+    // { binding: 'day', header: 'Day of Week' },
+    // { binding: 'lat', header: 'Latitude', isReadOnly: false, format: 'n6' }, // Editable
+    // { binding: 'lng', header: 'Longitude', isReadOnly: false, format: 'n6' }, // Editable
+    // { binding: 'color', header: 'Color' },
   ];
   dayOfWeek: string = '';
   routes: string[] = [];
@@ -51,11 +97,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (this.isBrowser) {
-      console.log(
-        'planner mode',
-        this.isPopoutMode,
-        this.popoutService.isGridPoppedOut()
-      );
       // Listen for map events from NavigationService (for map-to-grid updates)
       this.navService.mapEventSubject
         .pipe(takeUntil(this.destroy$))
@@ -70,17 +111,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   ngOnInit() {
     if (this.isBrowser) {
       this.popoutService.setGridPoppedOut(this.isPopoutMode);
-      console.log(
-        'planner mode',
-        this.isPopoutMode,
-        this.popoutService.isGridPoppedOut()
-      );
       // Listen for grid data updates from popout
       this.popoutService.gridDataUpdated$
         .pipe(takeUntil(this.destroy$))
         .subscribe((points) => {
           console.log('Main grid: Received data from popout:', points);
-          this.gridData = [...points];
+          this.gridData = [...points.points];
           if (this.flexGrid) {
             this.flexGrid.refresh();
           }
@@ -101,7 +137,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
               }
             }
           });
-        console.log('grid in main window planner');
         // Only subscribe to route params if NOT in popout mode
         this.route.params
           .pipe(
@@ -110,10 +145,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             takeUntil(this.destroy$)
           )
           .subscribe((params) => {
-            console.log(
-              'main window code for grid is running',
-              this.isPopoutMode
-            );
             this.routes = params['routes'] ? params['routes'].split(',') : [];
             this.dayOfWeek = params['dayOfWeek'];
             this.updateGridDataAndMap();
@@ -141,11 +172,11 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         const item = s.rows[e.row].dataItem;
         if (
           e.col === this.flexGrid.columns.getColumn('lat')?.index ||
-          e.col === this.flexGrid.columns.getColumn('lng')?.index
+          e.col === this.flexGrid.columns.getColumn('lon')?.index
         ) {
           item.lat = parseFloat(item.lat);
-          item.lng = parseFloat(item.lng);
-          if (!isNaN(item.lat) && !isNaN(item.lng)) {
+          item.lon = parseFloat(item.lon);
+          if (!isNaN(item.lat) && !isNaN(item.lon)) {
             console.log('Grid cell edited:', item);
             this.updateMapWithGridChanges();
           }
@@ -156,26 +187,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
   updateGridDataAndMap() {
     if (this.routes.length) {
-      console.log(
-        'getting insdide update Grud Data and map for the popin window'
-      );
-      // Generate data for new routes or if no data exists
-      const newData = this.routes.map((route: string, idx: number) => {
-        const existingItem = this.gridData.find((item) => item.route === route);
-        if (existingItem) {
-          return existingItem; // Keep existing data
-        }
-        return {
-          route,
-          stop: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
-          day: this.dayOfWeek,
-          passengers: Math.floor(Math.random() * 50),
-          lat: 40.7128 + 0.01 * idx,
-          lng: -74.006 + 0.01 * idx,
-          color: 'red',
-        };
-      });
-      this.gridData = newData;
+      this.gridData = this.navService.gridloadedData;
       console.log(this.gridData);
       this.navService.mapEventSubject.next({ points: this.gridData });
     } else {
@@ -195,10 +207,10 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       this.popoutService.popoutGridData = this.gridData;
     } else {
       console.log('flex grid', this.flexGrid);
-      const updatedPointsMap = new Map(mapPoints.map((p) => [p.route, p]));
+      const updatedPointsMap = new Map(mapPoints.map((p) => [p.cid, p]));
       console.log(updatedPointsMap);
       this.gridData = this.gridData.map((row) => {
-        const updatedPoint = updatedPointsMap.get(row.route);
+        const updatedPoint = updatedPointsMap.get(row.cid);
         if (updatedPoint) {
           return {
             ...row,
@@ -229,13 +241,16 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     if (this.isPopoutMode) {
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
-        payload: { points: this.gridData },
+        payload: { points: this.gridData, state: this.navService.getCurrentMapGridState() },
       });
     } // If in main window and grid is popped out, send to popout
     else if (this.popoutService.isGridPoppedOut()) {
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
-        payload: { points: this.gridData },
+        payload: {
+          points: this.gridData,
+          state: this.navService.getCurrentMapGridState(),
+        },
       });
     }
   }
@@ -314,7 +329,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   setupFlexGridEvents() {
     // Use a timeout to ensure flexGrid is rendered if showGrid was true
     setTimeout(() => {
-      console.log(this.flexGrid);
       if (this.flexGrid) {
         this.flexGrid.cellEditEnded.addHandler((s, e) => {
           const item = s.rows[e.row].dataItem;
@@ -330,7 +344,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           }
         });
       }
-      console.log(this.flexGrid);
     }, 0); // Small timeout to ensure rendering
   }
 

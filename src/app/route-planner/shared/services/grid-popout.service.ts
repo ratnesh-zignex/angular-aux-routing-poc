@@ -1,9 +1,15 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { Subject, Observable, BehaviorSubject } from 'rxjs';
 import { MapPoint } from '../interfaces/map-interfaces';
+import { customer } from '../../../protos/customer/customer';
+import { MapGridState } from './navigation.service';
 export interface PopoutMessage {
   type: 'gridDataUpdated' | 'putGridBack' | string;
   payload?: any; // Payload is optional for 'putGridBack'
+}
+export interface popoutData {
+  points: customer.ICustomer[];
+  state: MapGridState;
 }
 
 @Injectable({
@@ -13,8 +19,8 @@ export class GridPopoutService implements OnDestroy {
   private channelName = 'grid-popout-channel';
   private broadcastChannel: BroadcastChannel | null = null;
   // Subjects for messages received from the pop-out window
-  private _gridDataUpdated = new Subject<MapPoint[]>();
-  gridDataUpdated$: Observable<MapPoint[]> =
+  private _gridDataUpdated = new Subject<popoutData>();
+  gridDataUpdated$: Observable<popoutData> =
     this._gridDataUpdated.asObservable();
   private _putGridBack = new Subject<{
     points: MapPoint[];
@@ -37,7 +43,7 @@ export class GridPopoutService implements OnDestroy {
   // State management
   private _isGridPoppedOut = new BehaviorSubject<boolean>(false);
   isGridPoppedOut$ = this._isGridPoppedOut.asObservable();
-  popoutGridData: MapPoint[] = [];
+  popoutGridData: customer.ICustomer[] = [];
   constructor(private ngZone: NgZone) {
     this.initializeBroadcastChannel();
     // Listen for main window unload to close popout
@@ -48,6 +54,7 @@ export class GridPopoutService implements OnDestroy {
         }
       });
     }
+
   }
   private initializeBroadcastChannel(): void {
     if (!this.broadcastChannel) {
@@ -63,7 +70,7 @@ export class GridPopoutService implements OnDestroy {
           switch (message.type) {
             case 'gridDataUpdated':
               if (message.payload?.points)
-                this._gridDataUpdated.next(message.payload?.points);
+                this._gridDataUpdated.next(message.payload);
               break;
             case 'putGridBack':
               const putBackData = {

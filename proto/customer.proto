@@ -1,0 +1,434 @@
+syntax = "proto3";
+package customer;
+
+option java_package="com.zignex.app.proto.customer";
+option java_multiple_files = true;
+
+message CustomerRequest {
+  int64 acct_id = 1;
+  string ops_unit_cd = 2;
+  repeated string srvc_rt_typ_cd = 3;
+  repeated string srvc_ordr_rt_dow = 4;
+  repeated string srvc_ordr_rt_no = 5;
+  string userNm = 6;
+  string lobCd = 7;
+}
+
+message CustomerResponse {
+  repeated Customer customer_array = 1;
+}
+
+message Customer {
+  string cid = 1;
+  string name = 2;
+  string rNo = 3;
+  int32 sNo = 4;
+  double uqty = 5;
+  double uVolVal = 6;
+  double uWtVal = 7;
+  int32 srvctm = 8;
+  string strtm = 9;
+  string stptm = 10;
+  string addr = 11;
+  string cty = 12;
+  string state = 13;
+  string zip = 14;
+  string cntry = 15;
+  double lat = 16;
+  double lon = 17;
+  string srcDOW = 18;
+  string srcRNo = 19;
+  int32 srcSNo = 20;
+  string geoSt = 21;
+  string note1 = 22;
+  int64 uid = 23;
+  int64 cuId = 24;
+  int64 unId = 25;
+  int64 orId = 26;
+  int64 loId = 27;
+  int64 noId = 28;
+  int32 clstId = 29;
+  string sos = 30;
+  string lkFlgD = 31;
+  double adTm = 32;
+  int32 tTsrv = 33;
+  double tcTsrv = 34;
+  string pRDow = 35;
+  int32 oPr = 36;
+  string srvcOrdrSrcDispCd=37;
+  int32 sOLNo = 38;
+  string edId=39;
+  string pRt = 40;
+  int32 pSeq = 41;
+  string vStLc = 43;
+  string vEdLc = 44;
+  string osPkup= 45;
+  string prOpUnCd = 46;
+  string prDispCd = 47;
+  string rtWkCd = 48;
+  int32 wkNo = 49;
+  string note2=50;
+  int32 srvcUnitAccCdId = 51;
+  string srvcUnitAccCd = 52;
+  string notes1=53;
+  string notes3=54;
+  string userCustom1=55;
+  string userCustom2=56;
+  string userCustom3=57;
+  string creationDtm=58;
+  string srvcOrdrCode=59;
+  string userDefinedWeekCd=60;
+  double totCostTsrvPrYd = 61;
+  string userId=62;
+  string srvcUnitNote1=63;
+  string materialType=64;
+  int32 weekCodeLockFlag=65;
+  string srvcGeocodeSrc = 66;
+  string srvcGeocodeSrcDesc = 67;
+  string srvcGeocodeConf = 68;
+  int32 srvcUnitFrqByWk = 69;
+  string notes4=70;
+  string notes5=71;
+  string userCustom4=72;
+  string userCustom5=73;
+  string srvcUnitNotes2=74;
+  int32 mapPageNo=75;
+  string srvcUnitNotes3=76;
+  int32 srvcUnitLftAccPnlt = 77;
+  int32 srvcUnitRgtAccPnlt = 78;
+  string dchg = 81;  
+  string dayChangeP = 82;  
+  string weekChange = 83;  
+  string weekChangeP = 84;
+}
+message CustomerResponseShort {
+  repeated CustomerShortMsg customer_list = 1;
+}
+message CustomerShortMsg {
+  string cid = 1;
+  string name = 2;
+  string rNo = 3;
+  int32 sNo = 4;
+  double uqty = 5;
+  double uVolVal = 6;
+  double uWtVal = 7;
+  int32 srvctm = 8;
+  string strtm = 9;
+  string stptm = 10;
+  string addr = 11;
+  double lat = 12;
+  double lon = 13;
+  string srcDOW  = 14;
+  string srcRNo  = 15;
+  int32 srcSNo  = 16;
+  string geoSt  = 17;
+  string note1  = 18;
+  int64 uid = 19;
+  int64 cuId = 20;
+  int64 unId = 21;
+  int64 orId = 22;
+  int64 loId = 23;
+  int64 noId = 24;
+  int32 clstId  = 25;
+  int32 oPr  = 26;
+  string srvcOrdrSrcDispCd=27;
+  int32 sOLNo  = 28;
+  string osPkup = 29;
+  string note2 = 30;
+  int32 srvcUnitAccCdId = 31;
+  string srvcUnitAccCd = 32;
+  string notes1=33;
+  string notes3=34;
+  string userCustom1=35;
+  string userCustom2=36;
+  string userCustom3=37;
+  string creationDtm=38;
+  string userId = 39;
+  string srvcUnitNote1=40;
+  string materialType=41;
+  string srvcGeocodeSrcDesc = 42;
+  int32 srvcUnitFrqByWk = 43;
+  double tcTsrv = 44;
+  double totCostTsrvPrYd = 45;
+  string state = 46;
+  string zip = 47;
+  string cty = 48;
+  string notes4=49;
+  string notes5=50;
+  string userCustom4=51;
+  string userCustom5=52;
+  string srvcUnitNotes2=53;
+  string srvcUnitNotes3=54;
+}
+message DayOfWeek {
+  string monday = 1;
+  string tuesday = 2;
+  string wednesday = 3;
+  string thursday = 4;
+  string friday = 5;
+  string saturday = 6;
+  string sunday = 7;
+}
+
+message WeeklyCustomer {
+  string cid = 1;
+  string name = 2;
+  double uqty = 3;
+  double uVolVal = 4;
+  double uWtVal = 5;
+  string addr = 6;
+  string cty = 7;
+  string state = 8;
+  string zip = 9;
+  string cntry = 10;
+  double lat = 11;
+  double lon = 12;
+  string geoSt = 13;
+  int32 frqByWk = 14;
+  int64 cuId = 15;
+  int64 unId = 16;
+  int64 loId = 17;
+  DayOfWeek orgRt = 18;
+  DayOfWeek sRt = 19;
+  int32 wkClstId = 20;
+  string sos = 21;
+  DayOfWeek pRt = 22;
+  string lkFlg = 23;
+  string edId=24;
+  string slockCd = 26;
+  string rtWkCd = 27;
+  string prRtWkCd = 28;
+  string prOpUnCd = 29;
+  string prDispCd = 30;
+  int32 wkNo = 31;
+  string srvcUnitNote1=32;
+  int32 srvcUnitAccCdId = 33;
+  string srvcUnitAccCd = 34;
+  string srvcUnitCd=35;
+  string creationDtm=36;
+  string userDefinedWeekCd=37;
+  double totCostTsrv = 38;
+  double totCostTsrvPrYd = 39;
+  int32 weekCodeLockFlag =40;
+  int32 priority = 41;
+  string srvcUnitNotes2=42;
+  string materialType = 43;
+  string srvcUnitNotes3=44;
+  string srvcRtTypCd=45;
+  int32 srvcUnitLftAccPnlt = 46;
+  int32 srvcUnitRgtAccPnlt = 47;
+  string dchg = 48;
+  string dayChangeP = 49;
+  string weekChange = 50;
+  string weekChangeP = 51;
+}
+
+message WeeklyCustomerResponse {
+  repeated WeeklyCustomer weekly_customer_list = 1;
+  bool shortRes=2;
+}
+message ScenarioCustomerRequest {
+  int64 scenario_id = 1;
+  string srvc_ordr_rt_dow = 2;
+  repeated string srvc_ordr_rt_no = 3;
+}
+
+message RPCustomerReportResponse{
+  repeated RPCustomerReportData rp_customer_list=1;
+}
+message RPCustomerReportData {
+  string cstmrNo = 1;
+  string cstmrNm = 2;
+  string srvcOrdrRtDow=3;
+  string srvcOrdrRtNo = 4;
+  int32 srvcOrdrRtSeqNo = 5;
+  double srvcUnitQty = 6;
+  double srvcUnitVolVal = 7;
+  double srvcUnitWtVal = 8;
+  int32 srvcOrdrSrvcTm = 9;
+  string lockedFlag=10;
+  string srvcAddr1 = 11;
+  string srvcCity = 12;
+  string srvcStateCd = 13;
+  string srvcZipCd = 14;
+  double srvcLat = 15;
+  double srvcLon = 16;
+  string notes1 = 17  [deprecated = true];
+  string srvcOrdrStartTm1 = 18;
+  string srvcOrdrStopTm1 = 19;
+  string srvcOrdrWeekCode =20;
+  string containerNotes1 = 21;
+  string containerNotes2 = 22 [deprecated = true];
+  string containerNotes3 = 23;
+  string userCustom1 = 24;
+  string userCustom2 = 25;
+  string userCustom3 = 26;
+  int64 acctId = 27;
+  string opsUnitCd = 28;
+  string srvcRtTypCd = 29;
+  string acctNm = 30;
+  string srvcUnitNotes1 = 31;
+  string srvcUnitNotes2 = 32;
+  string srvcUnitNotes3 = 33;
+  string srvcUnitNotes4 = 34;
+  string srvcUnitNotes5 = 35;
+  string userCustom4 = 36;
+  string userCustom5 = 37;
+  string containerNotesNo2 = 38;
+}
+
+
+message MonthlyPlannerCustomer {
+  string cid = 1;
+  string name = 2;
+  double uqty = 3;
+  double uVolVal = 4;
+  double uWtVal = 5;
+  string addr = 6;
+  string cty = 7;
+  string state = 8;
+  string zip = 9;
+  string cntry = 10;
+  double lat = 11;
+  double lon = 12;
+  string geoSt = 13;
+  int32 frqByWk = 14;
+  int64 cuId = 15;
+  int64 unId = 16;
+  int64 loId = 17;
+  DayOfWeek orgRt = 18;
+
+  int32 wkClstId = 19;
+  string sos = 20;
+  DayOfWeek pRt = 21;
+  string lkFlg = 22;
+  string edId=23;
+  string dayChangeP=24;
+  string slockCd=25;
+  string rtWkCd = 26;
+  string prRtWkCd = 27;
+  string prOpUnCd = 28;
+  string prDispCd = 29;
+  string srvcUnitNote1=30;
+
+  DayOfWeek prRouteWeek1 = 31;
+  DayOfWeek prSNoWeek1 = 32;
+  DayOfWeek prRouteWeek2 = 33;
+  DayOfWeek prSNoWeek2 = 34;
+  DayOfWeek prRouteWeek3 = 35;
+  DayOfWeek prSNoWeek3 = 36;
+  DayOfWeek prRouteWeek4 = 37;
+  DayOfWeek prSNoWeek4 = 38;
+  string srcWkCdCh = 39;
+  string srcOrdrRtDow = 40;
+  DayOfWeek srcRouteWeek = 41;
+  string weekChangeP = 42;
+}
+
+message MonthlyPlannerCustomerRequest {
+  int64 acct_id = 1;
+  string ops_unit_cd = 2;
+  repeated string srvc_rt_typ_cd = 3;
+  repeated string srvc_ordr_rt_wk_cd = 4;
+  repeated int32 sel_week_no = 5;
+  string userNm = 6;
+}
+
+message MonthlyPlannerCustomerResponse {
+  repeated MonthlyPlannerCustomer monthly_planner_customer_list = 1;
+}
+
+message WeeklyCustomerShort {
+  string cid = 1;
+  string name = 2;
+  double lat = 3;
+  double lon = 4;
+  string dow=5;
+  string lkFlg = 6;
+  string addr=7;
+  string srcDow=8;
+  int64 unId=9;
+  int32 wkClstId = 10;
+  string srvcUnitNote1=11;
+  int64 loId = 12;
+  string srvcUnitNotes2=14;
+  string materialType=15;
+  string srvcUnitNotes3=16;
+  WeeklyCustomerOtherField weeklyCustomerOtherField = 13;
+  string srvcRtTypCd=17;
+}
+
+message WeeklyCustomerOtherField {
+    string rtNo = 1;
+     double srvcUnitQty = 8;
+     double srvcUnitVolVal = 9;
+}
+
+message WeeklyCustomerShortResponse {
+  repeated WeeklyCustomerShort weekly_customer_list = 1;
+  bool shortRes=2;
+}
+
+message UngeocodedCustomerRequest {
+  int64 acct_id = 1;
+  string ops_unit_cd = 2;
+  repeated string srvc_rt_typ_cd = 3;
+  string userNm = 4;
+  string lobCd = 5;
+}
+
+message UngeocodedCustomer {
+  string cid = 1;
+  string name = 2;
+  string addr = 3;
+  string cty = 4;
+  string state = 5;
+  string zip = 6;
+  string cntry = 7;
+  double lat = 8;
+  double lon = 9;
+  string sos = 10;
+  string edId = 11;
+  int64 loId = 12;
+  string geoSt = 13;
+  int64 srvcUnitId = 14;
+  string srvcGeocodeSrc = 15;
+  string srvcGeocodeSrcDesc = 16;
+  string srvcGeocodeConf = 17;
+}
+
+message UngeocodedCustomerResponse {
+  repeated UngeocodedCustomer ungeocoded_customer_list = 1;
+}
+message LocationResponse {
+  string road_id = 1;
+  string side_of_street = 2;
+  double offset_lat = 3;
+  double offset_lon = 4;
+  string census_id = 5;
+  string street_name = 6;
+  string loc_src = 7;
+  int64 srvc_loc_id = 8;
+  string user_id = 9;
+  bool geocode_status = 10;
+  double srvc_lon = 11;
+  double srvc_lat = 12;
+  string geo_conf =13;
+  int64 acct_id = 14;
+  string ops_unit_cd = 15;
+  string route_type = 16;
+}
+
+message BatchLocationResponse {
+  repeated LocationResponse batch_location_response_list = 1;
+}
+
+message BatchLocationRequest {
+  repeated LocationResponse batch_location_request = 1;
+}
+// The customer service definition.
+service CustomerService {
+
+  rpc fetchWeeklyCustomersShort(CustomerRequest) returns (WeeklyCustomerShortResponse) {}
+  rpc fetchBatchGeocodeResponse(BatchLocationRequest) returns (BatchLocationResponse) {}
+}

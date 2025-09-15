@@ -1,6 +1,593 @@
 @import "@grapecity/wijmo.styles/wijmo.css";
+$font-family-roboto: 'Roboto';
+$font-family-roboto-light: 'Roboto-Light';
+$font-family-roboto-medium: 'Roboto-Medium';
+
+$white: #fff !default;
+$gray-100: #f8f9fa !default;
+$gray-200: #f2f2f2 !default;
+$gray-300: #dee2e6 !default;
+$gray-400: #eaeaea !default;
+$gray-500: #d2d2d2 !default;
+$gray-600: #707070 !default;
+$gray-650: #867f7f !default;
+$gray-700: #495057 !default;
+$gray-800: #343a40 !default;
+$gray-900: #212529 !default;
+$gray: #bdc1c6 !default;
+$drakgray: grey !default;
+$blue: #1663e1 !default;
+$black: #000 !default;
+$red: red !default;
+$green: green !default;
+$orange: orange !default;
+$noteTextColor: #b58436 !default;
+$stops: #4186a4 !default;
+$lifts: #f27e3b !default;
+$yard: #0b3790 !default;
+$weight: #6c00a5f0 !default;
+
+$rtCntColor: #4186a4 !default;
+$tktCntColor: #f27e3b !default;
+$eqHaulColor: #0b3790 !default;
+
+$facCostColor: #4186a4 !default;
+
+//wijmo
+
+$wijmo-font-size: 12px;
+$wijmo-cell-font-size: 11px;
+$wijmo-tabpanel-font-size: 14px;
+$wijmo-tabpanel-selected-bgcolor: $drakgray;
+$wijmo-tabpanel-header-bgcolor: $gray-400;
+$wijmo-tabpanel-header-text: 14px;
+$wijmo-tabpanel-header-hover-bgcolor: $gray-500;
+$wijmo-tabpanel-header-active-text: $black;
+$wijmo-tabpanel-header-active-bgcolor: $white;
+
+//wijmo accordion
+
+$wijmo-accordion-desc-color: $blue;
+$wijmo-accordion-desc-size: 11px;
+
+// wijmo popup
+
+$wijmo-popup-header-x: 5px;
+$wijmo-popup-header-y: 8px;
+$wijmo-popup-font-size: 12px;
+$wijmo-popup-text-color: $gray-600;
+$wijmo-font-size: 12px;
+$wijmo-type-label-color: #222222;
+
+// ol-popup
+
+$ol-popup-font-size: 12px;
+
+//tooltip
+
+$tooltip-bg: rgb(75, 75, 75);
+$tooltip-text: $white;
+
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+.wj-cell.wj-alt {
+  background-color: rgb(232, 232, 232);
+}
+
+.wj-flexgrid {
+  .wj-cell {
+    padding: 5px !important;
+    font-size: $wijmo-cell-font-size !important;
+    border-right: 1px solid $gray-300 !important;
+    border-bottom: 1px solid $gray-300 !important;
+    color: $gray-600;
+
+    label {
+      input[type='checkbox'] {
+        margin: auto;
+      }
+    }
+  }
+}
+
+.wj-header {
+  // font-weight: 700 !important;
+  &:hover {
+    background-color: $gray-400;
+  }
+}
+
+// wijmo popup
+.wj-popup {
+  font-family: $font-family-roboto;
+  font-size: $wijmo-popup-font-size;
+  color: $wijmo-popup-text-color !important;
+
+  .wj-dialog-header {
+    padding: $wijmo-popup-header-x $wijmo-popup-header-y !important;
+  }
+
+  .wj-dialog-body {
+    padding: $wijmo-popup-header-x $wijmo-popup-header-y 0 $wijmo-popup-header-y !important;
+
+    .type-label {
+      font-family: $font-family-roboto-medium;
+      color: $wijmo-type-label-color;
+    }
+
+    .wj-control {
+      color: $wijmo-popup-text-color !important;
+    }
+
+    wj-combo-box input,
+    wj-input-time input {
+      text-align: left !important;
+    }
+  }
+
+  .wj-dialog-footer {
+    margin-top: 0px !important;
+    padding: $wijmo-popup-header-x $wijmo-popup-header-y !important;
+  }
+}
+
+// backdrop hide
+.wj-popup-backdrop {
+  display: none;
+}
+
+// wijmo cell select color
+.wj-cells .wj-cell.wj-state-multi-selected {
+  background: $gray-650 !important;
+  color: $white !important;
+}
+
+.wj-cells .wj-cell.wj-state-selected {
+  background: $gray-650 !important;
+}
+
+.wj-flexgrid .wj-cell input.wj-column-selector.wj-column-selector-group {
+  transform: scale(1.1);
+  margin: 0 auto;
+}
+
+.wj-cell.wj-wrap,
+.wj-colgroup {
+  white-space: normal !important;
+  text-overflow: ellipsis !important;
+  word-wrap: inherit !important;
+}
+
+.wj-flexgrid .wj-cell input.wj-column-selector {
+  margin: 0 auto;
+  vertical-align: bottom;
+  outline: 0;
+}
+
+//wijmo tabpanel
+.wj-tabpanel {
+  div {
+    .wj-tabheaders {
+      .withIcon {
+        text-transform: none;
+        padding: 4px 3px;
+        background-color: $wijmo-tabpanel-header-bgcolor;
+        border-right: 1px solid $gray-500;
+        &:hover {
+          background-color: $wijmo-tabpanel-header-hover-bgcolor;
+        }
+
+        &:after {
+          background-color: $wijmo-tabpanel-selected-bgcolor;
+          top: 0;
+        }
+      }
+
+      .withoutIcon {
+        text-transform: none;
+        padding: 10px;
+        background-color: $wijmo-tabpanel-header-bgcolor;
+        font-size: $wijmo-tabpanel-font-size;
+        margin-bottom: 5px;
+        border-right: 1px solid $gray-500;
+        font-weight: normal;
+
+        &:hover {
+          background-color: $wijmo-tabpanel-header-hover-bgcolor;
+        }
+
+        &:after {
+          background-color: $wijmo-tabpanel-selected-bgcolor;
+          bottom: 0;
+        }
+      }
+      // styling for the new tab panels design - used in batch job popup
+      .withoutIconMinimal {
+        text-transform: none;
+        padding: 10px;
+        background-color: transparent;
+        font-size: $wijmo-tabpanel-font-size;
+        margin-bottom: 5px;
+        border-right: none;
+        border-bottom: 1px solid $gray-500;
+        font-weight: normal;
+        position: relative;
+
+        &:hover {
+          background-color: $wijmo-tabpanel-header-hover-bgcolor;
+        }
+
+        &:after {
+          background-color: $wijmo-tabpanel-selected-bgcolor;
+          bottom: 0;
+        }
+        // Show border only between tabs
+        &:not(:last-child)::before {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 15%;
+          height: 70%;
+          width: 1px;
+          background-color: #d2d2d2;
+        }
+        &.wj-state-active::after {
+          bottom: -2px !important;
+          height: 1px !important;
+        }
+        &.wj-state-disabled {
+          opacity: 1 !important; // cancel Wijmo’s default opacity
+          pointer-events: none;
+          cursor: default;
+          color: rgba($gray-700, 0.4);
+        }
+      }
+      .wj-tabheader.wj-state-active {
+        background: $wijmo-tabpanel-header-active-bgcolor;
+        color: $wijmo-tabpanel-header-active-text;
+      }
+
+      .wj-state-active {
+        .header-icon {
+          background-color: $wijmo-tabpanel-header-bgcolor;
+        }
+      }
+    }
+
+    .wj-tabpanes {
+      border-top: none !important;
+      overflow: hidden;
+    }
+  }
+}
+
+//wijmo accordion start
+.wj-accordion > .wj-header.wj-state-active {
+  background-color: $wijmo-tabpanel-header-active-bgcolor;
+  color: $wijmo-tabpanel-header-active-text;
+
+  &:hover {
+    background-color: $gray-400;
+  }
+
+  // hide active header description
+  .desc {
+    display: none;
+  }
+}
+
+.sidebar-accordion > .wj-accordion > .wj-header {
+  background-color: $white;
+  font-size: $wijmo-tabpanel-font-size;
+  padding: 7px;
+}
+
+.PopupHeader .wj-accordion > .wj-header,
+.PopupHeader .wj-header {
+  background-color: $gray-400;
+}
+
+.PopupHeader .headers {
+  font-size: $wijmo-font-size !important;
+  padding: 3px 6px !important;
+  font-weight: 500 !important;
+  border-radius: 5px;
+}
+
+.PopupHeader .wj-tabheader:after {
+  bottom: 0;
+}
+
+// header description
+.wj-accordion .desc {
+  font-size: $wijmo-accordion-desc-size;
+  color: $wijmo-accordion-desc-color;
+  background-color: transparent;
+  margin-left: 35px;
+}
+
+.wj-accordion > .wj-header:focus {
+  outline: transparent;
+}
+
+.wj-accordion.wj-show-icons > .wj-header:before {
+  margin: 0.2em 0.4em 0.4em 0 !important;
+}
+
+.wj-dialog-body dl {
+  display: inline-flex;
+  margin-right: 2px;
+  align-items: center;
+}
+
+.wj-dialog-body dl dd {
+  margin-left: 2px;
+}
+
+dt {
+  font-family: $font-family-roboto-medium;
+  color: $wijmo-type-label-color;
+}
+
+.grid-box {
+  h4 {
+    font-family: $font-family-roboto-medium;
+    color: $wijmo-type-label-color;
+  }
+
+  @apply rounded-md;
+  @apply bg-gray-100;
+  @apply p-2;
+
+  ul li:not(:last-child) {
+    margin-bottom: 4px;
+  }
+}
+
+.wj-listbox {
+  .wj-listbox-item {
+    padding: 4px !important;
+    font-size: $wijmo-cell-font-size;
+
+    label {
+      align-items: center !important;
+    }
+  }
+}
+
+// align left wijmo tab panel
+.wj-tabpanel.tabs-left {
+  .wj-tabheaders {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    width: 36px;
+    height: 36px;
+    transform: rotate(270deg);
+
+    .withoutIcon {
+      text-align: center;
+      padding: 5px;
+      margin-bottom: 0px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      border-left: 1px solid #d2d2d2;
+      border-right: 0;
+    }
+  }
+
+  .wj-tabpanes {
+    display: flex;
+    flex-grow: 1;
+    border-top: none;
+  }
+}
+
+.wj-tabpanel.tabs-top {
+  .wj-tabheaders {
+    display: inline-flex;
+    line-height: 10px;
+    transform: rotate(0deg);
+    margin-left: 35px;
+
+    .withoutIcon {
+      text-align: center;
+      padding: 12px 5px;
+      margin-bottom: 0px;
+      font-size: 13px;
+    }
+  }
+
+  .wj-tabpanes {
+    display: flex;
+    flex-grow: 1;
+    border-top: none;
+  }
+}
+
+.wj-listbox {
+  .wj-listbox-item.wj-header {
+    z-index: 1;
+  }
+}
+
+/****  Axis Scrollbar Css *****/
+.wj-flexchart .wj-axis-scrollbar-container {
+  position: relative;
+}
+
+.wj-flexchart .wj-axis-scrollbar-container .wj-chart-rangeslider {
+  border: 1px solid #eaeaea;
+  background-color: #eaeaea;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.wj-flexchart .wj-axis-scrollbar-container .wj-chart-hrangeslider {
+  height: 20px;
+}
+
+.wj-flexchart .wj-axis-scrollbar-container .wj-chart-vrangeslider {
+  width: 12px;
+}
+
+.wj-flexchart .wj-chart-vrangeslider .wj-rangeslider-minhandle,
+.wj-flexchart .wj-chart-vrangeslider .wj-rangeslider-maxhandle {
+  background: #bdbdbd;
+  cursor: ns-resize;
+  width: 20px;
+  margin-left: -5px;
+  height: 9px;
+}
+
+.wj-tabpanel.tabsNormal {
+  top: 3px !important;
+  left: 40px !important;
+  position: absolute !important;
+
+  .wj-tabheaders {
+    transform: none !important;
+    display: flex !important;
+    flex-direction: row !important;
+  }
+
+  .withoutIcon {
+    display: block !important;
+    padding: 7px 10px !important;
+    font-size: 14px !important;
+    border-left: none !important;
+    border-right: 1px solid #d2d2d2 !important;
+  }
+}
+
+.wj-calendar .wj-calendar-month {
+  color: #000;
+}
+
+.fontItalic {
+  font-style: italic !important;
+}
+
+.wj-error-tip {
+  font-size: 12px;
+}
+.widthTab150 {
+  width: 150px;
+}
+.textAlignCenter {
+  text-align: center !important;
+}
+
+.checkBoxRed label input[type='checkbox'] {
+  background: #ff7676 !important;
+}
+.checkBoxGreen label input[type='checkbox'] {
+  background: #36be22 !important;
+}
+.checkBoxDisabled label input[type='checkbox'] {
+  background: #b6afbd !important;
+}
+#dpCompTabPanel div .wj-tabheaders {
+  display: flex;
+}
+.withoutIcon.stops {
+  &::after {
+    background-color: $stops !important;
+  }
+}
+
+.withoutIcon.lifts {
+  &::after {
+    background-color: $lifts !important;
+  }
+}
+
+.withoutIcon.yards {
+  &::after {
+    background-color: $yard !important;
+  }
+}
+.withoutIcon.weight {
+  &::after {
+    background-color: $weight !important;
+  }
+}
+.wijmoCustomTooltip {
+  // white-space: nowrap;
+  text-align: center;
+  border-radius: 6px;
+  padding: 3px 5px;
+  font-size: 11px !important;
+  max-width: 255px !important;
+  min-width: auto !important;
+  color: #fff !important;
+  background-color: #4b4b4b !important;
+  font-family: $font-family-roboto;
+}
+// styling for wijmo tooltip (used in showing scenario description in SP sidebar)
+.wj-tooltip {
+  background-color: $tooltip-bg;
+  color: $tooltip-text !important;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+//for multi route stats
+.routeTypeHeader {
+  background-color: #d1d1d1 !important;
+  color: #555555 !important;
+}
+
+/* style frozen cells */
+.wj-cell.wj-frozen,
+.wj-cell.wj-alt.wj-frozen {
+  background: #d0d0d0;
+  color: #2e3942;
+}
+
+.wj-listbox.column-picker-with-freeze {
+  // using multi-column layout for column wise data population
+  column-count: 5;
+  column-gap: 10px;
+  padding: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.wj-tabpanel.colHideFreezeTabPan {
+  position: absolute !important;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.19),
+    0 6px 6px rgba(0, 0, 0, 0.23);
+
+  .wj-tabheaders {
+    transform: none !important;
+    display: flex !important;
+    flex-direction: row !important;
+    width: 60%;
+    height: auto;
+  }
+
+  .withoutIcon {
+    display: block !important;
+    padding: 7px 10px !important;
+    font-size: 14px !important;
+    border-left: none !important;
+    border-right: 1px solid #d2d2d2 !important;
+  }
+}
+
+.reset-column-btn {
+  position: absolute;
+  top: 8px;
+  left: 97.5%;
+  cursor: pointer;
 }

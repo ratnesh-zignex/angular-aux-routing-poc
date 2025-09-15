@@ -19,13 +19,13 @@
     </div>
 
     <div class="routes">
-      <div *ngFor="let route of getAvailableRoutes()" class="route-item">
+      <div *ngFor="let route of this.routes" class="route-item">
         <input
           type="checkbox"
-          [checked]="currentState.selectedRoutes.includes(route)"
-          (change)="onRouteToggle(route, $event)"
+          [checked]="currentState.selectedRoutes.includes(route.routeNo)"
+          (change)="onRouteToggle(route.routeNo, $event)"
         />
-        <span>{{ route }}</span>
+        <span>{{ route.routeNo }} -- {{ route.custCnt }}</span>
       </div>
     </div>
   </div>

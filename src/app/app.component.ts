@@ -41,7 +41,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         if (event.url === '/') {
-          console.log('navigation RP now');
           this.navService.navigateToDefault();
         }
       } else if (event instanceof NavigationError) {

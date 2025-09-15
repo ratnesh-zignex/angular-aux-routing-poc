@@ -10,7 +10,8 @@
   </div>
 
   <!-- Grid Section - Hide in main window when popped out -->
-  <div class="grid-wrapper" *ngIf="!popoutService.isGridPoppedOut() || isPopoutMode">
+  <div class="grid-wrapper" *ngIf="!popoutService.isGridPoppedOut() || isPopoutMode"
+  [ngClass]="{ 'popout-grid': isPopoutMode, 'main-grid': !isPopoutMode }">
     <wj-flex-grid
       #flexGrid
       [itemsSource]="gridData"

@@ -15,6 +15,7 @@ import { MapGridState, NavigationService, SidebarState } from './shared/services
 export class RoutePlannerComponent implements OnInit {
   constructor(private router: Router, public navService: NavigationService) {}
   mapPoints: any[] = [];
+  appCode: string = '';
 
   ngOnInit() {
       this.router.events.subscribe((event) => {
@@ -26,7 +27,10 @@ export class RoutePlannerComponent implements OnInit {
     const currentUrl = this.router.url;
     console.log('AppComponent ngOnInit - current URL:', this.router.url);
     if (currentUrl === '/rp' || currentUrl === '/') {
+      this.navService.appCode = 'RP';
       this.navService.navigateToDefault();
+    } else if( currentUrl === '/mp'){
+      this.navService.appCode = 'MP';
     }
   }
   
