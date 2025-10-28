@@ -16,8 +16,8 @@ import { NavigationService } from '../../shared/services/navigation.service';
 import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 import { FlexGrid } from '@grapecity/wijmo.grid';
 import { GridPopoutService } from '../../shared/services/grid-popout.service';
-import { MapPoint } from '../../shared/interfaces/map-interfaces';
-import { customer } from '../../../protos/customer/customer';
+import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
+import { state } from '@angular/animations';
 @Component({
   selector: 'app-planner',
   standalone: true,
@@ -26,7 +26,7 @@ import { customer } from '../../../protos/customer/customer';
   styleUrl: './planner.component.scss',
 })
 export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
-  gridData: customer.ICustomer[] = [];
+  gridData: IZDailyCustomerDataType[] = [];
   columns: any[] = [
     {
       binding: 'cid',
@@ -112,7 +112,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     if (this.isBrowser) {
       this.popoutService.setGridPoppedOut(this.isPopoutMode);
       // Listen for grid data updates from popout
-      this.popoutService.gridDataUpdated$
+      this.popoutService.gridDataUpdated$ // this will update the map as well and handle map update as well
         .pipe(takeUntil(this.destroy$))
         .subscribe((points) => {
           console.log('Main grid: Received data from popout:', points);
@@ -129,13 +129,17 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           .pipe(takeUntil(this.destroy$))
           .subscribe((data) => {
             console.log('Main grid: Grid put back with data:', data);
-            if (data.points && data.points.length > 0) {
-              this.gridData = [...data.points];
-              this.setupFlexGridEvents();
-              if (this.flexGrid) {
-                this.flexGrid.refresh();
-              }
+            this.setupFlexGridEvents();
+            if (this.flexGrid) {
+              this.flexGrid.refresh();
             }
+            this.navService.getLoadedData(false, false)
+          });
+        this.navService.loadedDataSubject$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((data: IZDailyCustomerDataType[]) => {
+            this.popoutService.popoutGridData = data;
+            if (this.flexGrid) this.gridData = data;
           });
         // Only subscribe to route params if NOT in popout mode
         this.route.params
@@ -241,7 +245,10 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     if (this.isPopoutMode) {
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
-        payload: { points: this.gridData, state: this.navService.getCurrentMapGridState() },
+        payload: {
+          points: this.gridData,
+          state: this.navService.getCurrentMapGridState(),
+        },
       });
     } // If in main window and grid is popped out, send to popout
     else if (this.popoutService.isGridPoppedOut()) {
@@ -286,7 +293,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       setTimeout(() => {
         this.popoutService.sendMessage({
           type: 'initializeGridData',
-          payload: { points: this.gridData },
+          payload: {
+            points: this.gridData,
+            state: {
+              ...this.navService.getCurrentMapGridState(),
+              ...sidebarState,
+            },
+            popoutMode: true,
+          },
         });
       }, 1000);
       // Handle window close event

@@ -4,8 +4,13 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { lowerCase } from 'lodash';
 import { HttpService } from './http.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { IZRouteDataDOW } from '../interfaces/interfaces';
+import {
+  IZBaseDataType,
+  IZDailyCustomerDataType,
+  IZRouteDataDOW,
+} from '../interfaces/interfaces';
 import { customer } from '../../../protos/customer/customer';
+import { GridPopoutService } from './grid-popout.service';
 
 export interface SidebarState {
   plannerType: string;
@@ -86,7 +91,9 @@ export class NavigationService {
   routeTypeList: IZRouteTypeResponse[] = [];
   dowList: string[] = [];
   routesList: IZRouteDataDOW[] = [];
-  gridloadedData: customer.ICustomer[] = [];
+  gridloadedData: IZDailyCustomerDataType[] = []; // we can replace this in future with loadedDaata Subject
+  loadedDataSubject = new BehaviorSubject<IZDailyCustomerDataType[]>([]);
+  loadedDataSubject$ = this.loadedDataSubject.asObservable();
   // private sidebarReadySubject = new BehaviorSubject<boolean>(false);
   // sidebarReady$ = this.sidebarReadySubject.asObservable();
   // // New properties for grid pop-out
@@ -458,25 +465,51 @@ export class NavigationService {
     }
   }
 
-  async getLoadedData() {
-    const payload = {
-      acctId: '1000004',
-      opsUnitCd: this.selectedOperationUnit,
-      srvcRtTypCd: [this.selectedRouteType],
-      srvcOrdrRtDow: [this.selectedDayOfWeek],
-      srvcOrdrRtNo: this.selectedRoutes,
-      userNm: 'dev_login',
-      lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
-    };
+  async getLoadedData(
+    isPopoutMode?: boolean,
+    sendMapEventUpdate: boolean = true,
+    state?: MapGridState & SidebarState
+  ) {
+    let payload = {};
+    if (isPopoutMode) {
+      payload = {
+        acctId: '1000004',
+        opsUnitCd: state?.operationUnit,
+        srvcRtTypCd: [state?.routeType],
+        srvcOrdrRtDow: [state?.dayOfWeek],
+        srvcOrdrRtNo: state?.selectedRoutes,
+        userNm: 'dev_login',
+        lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
+      };
+    } else {
+      payload = {
+        acctId: '1000004',
+        opsUnitCd: this.selectedOperationUnit,
+        srvcRtTypCd: [this.selectedRouteType],
+        srvcOrdrRtDow: [this.selectedDayOfWeek],
+        srvcOrdrRtNo: this.selectedRoutes,
+        userNm: 'dev_login',
+        lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
+      };
+    }
     //api.qa.zignexlogistics.com/zexrp/ftCstmr
     const res = await this.httpService.postPromiseData('ftCstmr', payload);
 
     console.log('loaded data', res);
-    const loadedData = customer.CustomerResponse.decode(
-      new Uint8Array(res)
-    ).customerArray;
+    const loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
+      .customerArray as IZDailyCustomerDataType[];
+    this.processingLoadedData<IZDailyCustomerDataType>(loadedData);
     this.gridloadedData = loadedData;
-    this.mapEventSubject.next({ points: loadedData });
+    // if (isPopoutMode) this.popoutService.popoutGridData = loadedData;
+    if (sendMapEventUpdate) this.mapEventSubject.next({ points: loadedData });
     console.log('decoded data', loadedData);
+  }
+
+  processingLoadedData<T extends IZBaseDataType>(data: T[]): T[] {
+    const y: T[] = data.map((x: T, i: number) => {
+      x.index = i;
+      return x;
+    });
+    return y;
   }
 }

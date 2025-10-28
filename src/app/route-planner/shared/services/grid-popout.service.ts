@@ -1,14 +1,13 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { Subject, Observable, BehaviorSubject } from 'rxjs';
-import { MapPoint } from '../interfaces/map-interfaces';
-import { customer } from '../../../protos/customer/customer';
-import { MapGridState } from './navigation.service';
+import { MapGridState, NavigationService } from './navigation.service';
+import { IZDailyCustomerDataType } from '../interfaces/interfaces';
 export interface PopoutMessage {
   type: 'gridDataUpdated' | 'putGridBack' | string;
   payload?: any; // Payload is optional for 'putGridBack'
 }
 export interface popoutData {
-  points: customer.ICustomer[];
+  points: IZDailyCustomerDataType[];
   state: MapGridState;
 }
 
@@ -23,13 +22,13 @@ export class GridPopoutService implements OnDestroy {
   gridDataUpdated$: Observable<popoutData> =
     this._gridDataUpdated.asObservable();
   private _putGridBack = new Subject<{
-    points: MapPoint[];
+    points?: IZDailyCustomerDataType[];
     plannerType?: string;
     dayOfWeek?: string;
     routes?: string[];
   }>();
   putGridBack$: Observable<{
-    points: MapPoint[];
+    points?: IZDailyCustomerDataType[];
     plannerType?: string;
     dayOfWeek?: string;
     routes?: string[];
@@ -37,14 +36,14 @@ export class GridPopoutService implements OnDestroy {
   // State management for the pop-out window
   private _gridPopoutWindow: Window | null = null;
 
-  private _initializeGridData = new Subject<MapPoint[]>();
-  initializeGridData$: Observable<MapPoint[]> =
+  private _initializeGridData = new Subject<IZDailyCustomerDataType[]>();
+  initializeGridData$: Observable<IZDailyCustomerDataType[]> =
     this._initializeGridData.asObservable();
   // State management
   private _isGridPoppedOut = new BehaviorSubject<boolean>(false);
   isGridPoppedOut$ = this._isGridPoppedOut.asObservable();
-  popoutGridData: customer.ICustomer[] = [];
-  constructor(private ngZone: NgZone) {
+  popoutGridData: IZDailyCustomerDataType[] = [];
+  constructor(private ngZone: NgZone, private navService: NavigationService) {
     this.initializeBroadcastChannel();
     // Listen for main window unload to close popout
     if (typeof window !== 'undefined') {
@@ -54,7 +53,6 @@ export class GridPopoutService implements OnDestroy {
         }
       });
     }
-
   }
   private initializeBroadcastChannel(): void {
     if (!this.broadcastChannel) {
@@ -74,7 +72,6 @@ export class GridPopoutService implements OnDestroy {
               break;
             case 'putGridBack':
               const putBackData = {
-                points: message.payload?.points || [],
                 plannerType: message.payload?.plannerType,
                 dayOfWeek: message.payload?.dayOfWeek,
                 routes: message.payload?.routes,
@@ -83,8 +80,13 @@ export class GridPopoutService implements OnDestroy {
               this.setGridPoppedOut(false);
               break;
             case 'initializeGridData':
-              if (message.payload?.points) {
-                this._initializeGridData.next(message.payload.points);
+              if (message.payload) {
+                // this._initializeGridData.next(message.payload.points);
+                this.navService.getLoadedData(
+                  true,
+                  false,
+                  message.payload.state,
+                );
               }
               break;
 

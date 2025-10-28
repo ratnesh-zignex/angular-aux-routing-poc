@@ -10,9 +10,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { GridPopoutService } from '../shared/services/grid-popout.service';
 import { NavigationService } from '../shared/services/navigation.service';
-import { MapPoint } from '../shared/interfaces/map-interfaces';
 import { PlannerComponent } from '../map-grid/planner/planner.component';
-import { customer } from '../../protos/customer/customer';
+import { IZDailyCustomerDataType } from '../shared/interfaces/interfaces';
 
 @Component({
   selector: 'app-popout-grid',
@@ -120,7 +119,7 @@ export class PopoutGridComponent implements OnInit, OnDestroy {
   updateNavigationService() {}
   putGridBack() {
     // Get current grid data from the navigation service
-    const currentPoints: customer.ICustomer[] =
+    const currentPoints: IZDailyCustomerDataType[] =
       this.popoutService.popoutGridData;
 
     // Send message to main window to put grid back

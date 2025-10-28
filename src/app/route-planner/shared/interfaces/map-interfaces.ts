@@ -1,21 +1,13 @@
-export interface MapPoint {
-  route: string;
-  lat: number;
-  lng: number;
-  color: string;
-  stop?: string;
-  passengers?: number;
-  day?: string;
-}
+import { IZDailyCustomerDataType } from "./interfaces";
 
 export interface MapEvent {
   type?: string;
-  points: MapPoint[];
+  points: IZDailyCustomerDataType[];
   payload?: {
-    points: MapPoint[];
+    points: IZDailyCustomerDataType[];
   };
 }
 
 export interface GridDataUpdatedPayload {
-  points: MapPoint[];
+  points: IZDailyCustomerDataType[];
 }

@@ -4,11 +4,12 @@ import { MapComponent } from './map-grid/map/map.component';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { RoutePlannerModule } from './route-planner.module';
 import { MapGridState, NavigationService, SidebarState } from './shared/services/navigation.service';
+import { PopupManagerComponent } from './popup-manager/popup-manager.component';
 
 @Component({
   selector: 'app-route-planner',
   standalone: true,
-  imports: [RouterOutlet, MapComponent],
+  imports: [RouterOutlet, PopupManagerComponent],
   templateUrl: './route-planner.component.html',
   styleUrl: './route-planner.component.scss',
 })

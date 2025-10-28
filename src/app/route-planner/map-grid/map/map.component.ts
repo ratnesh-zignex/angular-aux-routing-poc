@@ -32,12 +32,13 @@ import { GridPopoutService } from '../../shared/services/grid-popout.service';
 import { Subscription } from 'rxjs';
 import Select from 'ol/interaction/Select';
 import Modify from 'ol/interaction/Modify';
-import { MapEvent, MapPoint } from '../../shared/interfaces/map-interfaces';
+import { MapEvent } from '../../shared/interfaces/map-interfaces';
 import { Geometry } from 'ol/geom';
 import Stroke from 'ol/style/Stroke';
 import { click } from 'ol/events/condition';
 import { customer } from '../../../protos/customer/customer';
 import { buffer } from 'ol/extent';
+import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
 
 @Component({
   selector: 'app-map',
@@ -47,7 +48,7 @@ import { buffer } from 'ol/extent';
   styleUrl: './map.component.scss',
 })
 export class MapComponent implements AfterViewInit, OnInit {
-  points: customer.ICustomer[] = [];
+  points: IZDailyCustomerDataType[] = [];
   private map!: Map;
   private vectorLayer!: VectorLayer;
   mapId: string = 'map1'; // Default map ID, can be changed based on route params
@@ -305,7 +306,10 @@ export class MapComponent implements AfterViewInit, OnInit {
       console.log('sending message to Grid popped out');
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
-        payload: { points: this.points, state: {...this.navBar.getCurrentMapGridState()} },
+        payload: {
+          points: this.points,
+          state: { ...this.navBar.getCurrentMapGridState() },
+        },
       });
     }
   }
