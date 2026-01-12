@@ -1,1 +1,12 @@
-<p>geocode works!</p>
+<div class="geocode-popup-overlay" (click)="onClose()">
+  <div class="geocode-popup" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h2>Geocode</h2>
+      <button class="close-btn" (click)="onClose()">×</button>
+    </div>
+    <div class="popup-body">
+      <p>Geocode functionality will be implemented here.</p>
+      <p *ngIf="data">Data received: {{ data | json }}</p>
+    </div>
+  </div>
+</div>

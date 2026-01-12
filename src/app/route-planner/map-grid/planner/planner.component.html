@@ -1,17 +1,35 @@
+<!-- Popout Button - Only show in main window when grid is NOT popped out -->
+<div
+  class="grid-controls"
+  *ngIf="isBrowser && !isPopoutMode && !popoutService.isGridPoppedOut()"
+>
+  <button class="btn-primary" (click)="popOutGrid()">Pop Out Grid</button>
+</div>
+
 <div *ngIf="isBrowser" class="planner-container">
-  <!-- Grid Controls - Only show in main window, not in popout mode -->
-  <div class="grid-controls" *ngIf="!isPopoutMode">
-    <button 
-      (click)="popOutGrid()" 
-      *ngIf="!popoutService.isGridPoppedOut()" 
-      class="btn-primary">
-      Pop Out Grid
-    </button>
+  <!-- Grid Toolbar - Only show in popout mode -->
+  <div class="grid-toolbar" *ngIf="isPopoutMode">
+    <div class="toolbar-buttons">
+      <button
+        *ngFor="let btn of currentGridBtnList"
+        (click)="handleToolbarClick(btn.id)"
+        [class]="btn.className"
+        [title]="btn.toolTipText"
+        [disabled]="btn.disabled"
+        class="toolbar-btn"
+      >
+        <span class="btn-icon"></span>
+        <span class="btn-label">{{ btn.name }}</span>
+      </button>
+    </div>
   </div>
 
   <!-- Grid Section - Hide in main window when popped out -->
-  <div class="grid-wrapper" *ngIf="!popoutService.isGridPoppedOut() || isPopoutMode"
-  [ngClass]="{ 'popout-grid': isPopoutMode, 'main-grid': !isPopoutMode }">
+  <div
+    class="grid-wrapper"
+    *ngIf="!popoutService.isGridPoppedOut() || isPopoutMode"
+    [ngClass]="{ 'popout-grid': isPopoutMode, 'main-grid': !isPopoutMode }"
+  >
     <wj-flex-grid
       #flexGrid
       [itemsSource]="gridData"
@@ -19,13 +37,8 @@
       [columnGroups]="columns"
       style="height: 100%; width: 100%"
     >
-      <!-- <wj-flex-grid-column binding="route" header="Route" [isReadOnly]="true"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="stop" header="Stop" [isReadOnly]="true"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="passengers" header="Passengers" [isReadOnly]="true"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="day" header="Day of Week" [isReadOnly]="true"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="lat" header="Latitude" [isReadOnly]="false"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="lng" header="Longitude" [isReadOnly]="false"></wj-flex-grid-column>
-      <wj-flex-grid-column binding="color" header="Color" [isReadOnly]="true"></wj-flex-grid-column> -->
     </wj-flex-grid>
   </div>
 </div>
+<!-- Popup Manager - Show in popout mode -->
+<app-popup-manager *ngIf="isPopoutMode"></app-popup-manager>

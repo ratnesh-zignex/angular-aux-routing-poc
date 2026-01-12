@@ -1,13 +1,15 @@
-<div class="popup-overlay" *ngIf="popupState?.type">
-  <ng-container [ngSwitch]="popupState?.type">
-    <!-- <app-statistics
-      *ngSwitchCase="'statistics'"
-      [isGridPoppedOut]="isGridPoppedOut" 
-      
-    >
-    </app-statistics>
-    <app-geocode *ngSwitchCase="'geocode'"
-    [isGridPoppedOut]="isGridPoppedOut" >
-    </app-geocode> -->
-  </ng-container>
-</div>
+<ng-container *ngIf="popupState && popupState.isOpen">
+  <!-- Statistics Popup -->
+  <app-statistics
+    *ngIf="popupState.type === 'statistics'"
+    [data]="popupState.data"
+    (close)="closePopup()"
+  ></app-statistics>
+
+  <!-- Geocode Popup -->
+  <app-geocode
+    *ngIf="popupState.type === 'geocode'"
+    [data]="popupState.data"
+    (close)="closePopup()"
+  ></app-geocode>
+</ng-container>

@@ -81,7 +81,9 @@ export class GridPopoutService implements OnDestroy {
               break;
             case 'initializeGridData':
               if (message.payload) {
-                // this._initializeGridData.next(message.payload.points);
+                console.log('GridPopoutService: Broadcasting init data to popout planner:', message.payload.points);
+                this._initializeGridData.next(message.payload.points);
+                // Also update the navigation service for other components
                 this.navService.getLoadedData(
                   true,
                   false,

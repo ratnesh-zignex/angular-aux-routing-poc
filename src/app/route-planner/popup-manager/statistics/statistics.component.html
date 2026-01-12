@@ -1,1 +1,90 @@
-<p>statistics works!</p>
+<div class="statistics-popup-overlay" (click)="onClose()">
+  <div class="statistics-popup" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="popup-header">
+      <div class="header-content">
+        <h2>Statistics (Daily)</h2>
+        <button class="close-btn" (click)="onClose()" title="Close">×</button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="popup-body">
+      <!-- Info Section -->
+      <div class="info-section">
+        <div class="info-item">
+          <span class="info-label">Operation Unit:</span>
+          <span class="info-value">{{ data?.operationUnit || "2027" }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Route Type:</span>
+          <span class="info-value">{{ data?.routeType || "CC" }}</span>
+        </div>
+      </div>
+
+      <!-- Export Button -->
+      <div class="action-buttons">
+        <button
+          class="export-btn"
+          (click)="exportToCSV()"
+          title="Export to CSV"
+        >
+          <span class="icon">📥</span> Export
+        </button>
+      </div>
+
+      <!-- Statistics Table -->
+      <div class="table-container">
+        <table class="statistics-table">
+          <thead>
+            <tr>
+              <th>Routes</th>
+              <th>Stops</th>
+              <th>Lifts</th>
+              <th>Yards</th>
+              <th>Weight (Tons)</th>
+              <th>Weight (Lbs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of statisticsData" class="data-row">
+              <td class="route-cell">
+                <span class="route-indicator"></span>
+                {{ row.rNo }}
+              </td>
+              <td class="stop-cell">{{ row.stops }}</td>
+              <td class="lift-cell">{{ row.lifts }}</td>
+              <td class="yard-cell">{{ row.yards | number : "1.0-2" }}</td>
+              <td class="weight-cell">
+                {{ row.weightTons | number : "1.2-2" }}
+              </td>
+              <td>{{ row.weightLbs | number : "1.0-0" }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td>
+                <strong>{{ totals.rNo }}</strong>
+              </td>
+              <td>
+                <strong>{{ totals.stops }}</strong>
+              </td>
+              <td>
+                <strong>{{ totals.lifts }}</strong>
+              </td>
+              <td>
+                <strong>{{ totals.yards | number : "1.0-2" }}</strong>
+              </td>
+              <td>
+                <strong>{{ totals.weightTons | number : "1.2-2" }}</strong>
+              </td>
+              <td>
+                <strong>{{ totals.weightLbs | number : "1.0-0" }}</strong>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

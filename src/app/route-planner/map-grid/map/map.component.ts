@@ -268,8 +268,11 @@ export class MapComponent implements AfterViewInit, OnInit {
         );
         this.updatePointCoordinates(cid, coords[1], coords[0]);
         this.unsavedChanges = true;
-        // Send updated points to both main app and pop-out
-        this.broadcastPointsUpdate();
+        // Send only the updated customer
+        const updatedCustomer = this.points.find(p => p.cid === cid);
+        if (updatedCustomer) {
+          this.broadcastSingleCustomerUpdate(updatedCustomer);
+        }
       }
     }
     this.isDragModeEnabled = false;
@@ -307,6 +310,26 @@ export class MapComponent implements AfterViewInit, OnInit {
       this.popoutService.sendMessage({
         type: 'gridDataUpdated',
         payload: {
+          points: this.points,
+          state: { ...this.navBar.getCurrentMapGridState() },
+        },
+      });
+    }
+  }
+
+  broadcastSingleCustomerUpdate(customer: IZDailyCustomerDataType): void {
+    console.log('Broadcasting single customer update:', customer);
+    // Send to main app grids
+    this.navBar.mapEventSubject.next({ 
+      singleCustomer: customer,
+      points: this.points 
+    });
+    // Send to pop-out grids (if any)
+    if (this.popoutService.isGridPoppedOut()) {
+      this.popoutService.sendMessage({
+        type: 'gridDataUpdated',
+        payload: {
+          singleCustomer: customer,
           points: this.points,
           state: { ...this.navBar.getCurrentMapGridState() },
         },

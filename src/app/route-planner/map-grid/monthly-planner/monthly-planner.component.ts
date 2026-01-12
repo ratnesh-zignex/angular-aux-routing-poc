@@ -1,6 +1,7 @@
 import {
   AfterViewInit,
   Component,
+  CUSTOM_ELEMENTS_SCHEMA,
   ElementRef,
   Inject,
   OnDestroy,
@@ -19,7 +20,8 @@ import { GridPopoutService } from '../../shared/services/grid-popout.service'; /
 @Component({
   selector: 'app-monthly-planner',
   standalone: true,
-  imports: [CommonModule, WjGridModule],
+  imports: [CommonModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './monthly-planner.component.html',
   styleUrl: './monthly-planner.component.scss',
 })

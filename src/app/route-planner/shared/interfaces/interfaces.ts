@@ -33,4 +33,5 @@ export type PopupType = 'statistics' | 'geocode' | null;
 export interface PopupState {
   type: PopupType;
   data?: any; // Data to pass to the popup component
+  isOpen?: boolean; // Indicates if popup is open
 }
