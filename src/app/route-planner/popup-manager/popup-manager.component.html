@@ -12,4 +12,11 @@
     [data]="popupState.data"
     (close)="closePopup()"
   ></app-geocode>
+
+  <!-- Edit All Popup -->
+  <app-edit-all
+    *ngIf="$any(popupState.type) === 'EditAll'"
+    [visible]="true"
+    (close)="closePopup()"
+  ></app-edit-all>
 </ng-container>

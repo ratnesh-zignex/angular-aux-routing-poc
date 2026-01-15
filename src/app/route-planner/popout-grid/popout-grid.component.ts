@@ -86,7 +86,8 @@ export class PopoutGridComponent implements OnInit, OnDestroy {
   handleWindowClose = () => {
     // Send message to main window that this window is closing
     this.popoutService.sendMessage({
-      type: 'windowClosing',
+      type: 'EVENT',
+      action: 'windowClosing',
     });
   };
   updateGridTitle() {
@@ -124,7 +125,8 @@ export class PopoutGridComponent implements OnInit, OnDestroy {
 
     // Send message to main window to put grid back
     this.popoutService.sendMessage({
-      type: 'putGridBack',
+      type: 'EVENT',
+      action: 'putGridBack',
       payload: {
         points: currentPoints,
         plannerType: this.plannerType,

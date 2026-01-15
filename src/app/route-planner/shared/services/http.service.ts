@@ -46,6 +46,23 @@ export class HttpService {
   postData(endpoint: string, body: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/${endpoint}`, body);
   }
+  
+  postDataText(
+    endpoint: string, 
+    body: any, 
+    params?: { [key: string]: string | number }
+  ): Observable<string> {
+    let httpParams = new HttpParams();
+    if (params) {
+      Object.keys(params).forEach((key) => {
+        httpParams = httpParams.set(key, params[key].toString());
+      });
+    }
+    return this.http.post(`${this.baseUrl}/${endpoint}`, body, { 
+        params: httpParams,
+        responseType: 'text' 
+    });
+  }
   postPromiseData(
     endpoint: string,
     body: any,

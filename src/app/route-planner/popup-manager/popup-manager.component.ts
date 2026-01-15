@@ -6,10 +6,12 @@ import { GridPopoutService } from '../shared/services/grid-popout.service';
 import { StatisticsComponent } from './statistics/statistics.component';
 import { GeocodeComponent } from './geocode/geocode.component';
 
+import { EditAllComponent } from './edit-all/edit-all.component';
+
 @Component({
   selector: 'app-popup-manager',
   standalone: true,
-  imports: [CommonModule, StatisticsComponent, GeocodeComponent],
+  imports: [CommonModule, StatisticsComponent, GeocodeComponent, EditAllComponent],
   templateUrl: './popup-manager.component.html',
   styleUrl: './popup-manager.component.scss',
 })

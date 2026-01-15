@@ -173,4 +173,20 @@ export const popoutGridBtnList: IZWijmoGridBtn[] = [
     privilegeCd: '',
     id: IZGridBtnEnum.Geocode
   },
+  {
+    className: 'zx-3x zx-icon zx-img3 zx-cust-edit',
+    toolTipText: 'Edit All',
+    toolTipClass: 'tooltip',
+    name: 'Edit All',
+    privilegeCd: '',
+    id: IZGridBtnEnum.EditAll
+  },
+  {
+    className: 'btn-delete',
+    toolTipText: 'Delete',
+    toolTipClass: 'tooltip',
+    name: 'Delete',
+    privilegeCd: '',
+    id: IZGridBtnEnum.Delete
+  },
 ];

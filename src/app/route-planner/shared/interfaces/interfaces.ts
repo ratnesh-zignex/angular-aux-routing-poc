@@ -29,7 +29,7 @@ export interface IZBaseDataType {
 export interface IZDailyCustomerDataType extends customer.ICustomer {
   index: number;
 }
-export type PopupType = 'statistics' | 'geocode' | null;
+export type PopupType = 'statistics' | 'geocode' | 'fieldCalculator' | null;
 export interface PopupState {
   type: PopupType;
   data?: any; // Data to pass to the popup component

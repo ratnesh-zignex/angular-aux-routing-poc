@@ -160,7 +160,8 @@ export class MonthlyPlannerComponent
     this.navService.mapEventSubject.next({ points: this.gridData });
     if (this.popoutService.isGridPoppedOut()) {
       this.popoutService.sendMessage({
-        type: 'gridDataUpdated',
+        type: 'EVENT',
+        action: 'gridDataUpdated',
         payload: { points: this.gridData },
       });
     }

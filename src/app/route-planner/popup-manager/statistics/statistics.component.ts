@@ -1,6 +1,8 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
+import { GridPopoutService, PopoutState } from '../../shared/services/grid-popout.service';
+import { Subject, takeUntil } from 'rxjs';
 
 interface RouteStatistics {
   rNo: string;
@@ -27,7 +29,7 @@ interface StatisticsInput {
   templateUrl: './statistics.component.html',
   styleUrl: './statistics.component.scss'
 })
-export class StatisticsComponent implements OnInit {
+export class StatisticsComponent implements OnInit, OnDestroy {
   @Input() data: StatisticsInput | null = null;
   @Output() close = new EventEmitter<void>();
 
@@ -41,10 +43,44 @@ export class StatisticsComponent implements OnInit {
     weightLbs: 0
   };
 
+  private destroy$ = new Subject<void>();
+  public currentState: PopoutState | null = null;
+
+  constructor(private popoutService: GridPopoutService) {}
+
   ngOnInit(): void {
+    // 1. Sync State
+    this.currentState = this.popoutService.popoutState;
+    console.log('Statistics: Initial State:', this.currentState);
+
+    // 2. Fetch Weekly Stats if needed
+    if (this.currentState.plannerType === 'Weekly') {
+        this.fetchWeeklyStats();
+    }
+
     if (this.data?.customers) {
       this.calculateStatistics(this.data.customers);
     }
+  }
+
+  fetchWeeklyStats() {
+      // Use Bridge to get stats
+      const routeType = this.currentState?.selectedRouteType || ''; 
+      // Need to confirm if we need more params, user said "selectedRouteType"
+      this.popoutService.sendRequest<any[]>('GET_WEEKLY_STATS', { routeType })
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+              next: (data) => {
+                  console.log('Statistics: Received Weekly Stats:', data);
+                  // TODO: Process data logic here (filtering types etc as per original code)
+              },
+              error: (err) => console.error('Statistics: Error fetching stats:', err)
+          });
+  }
+
+  ngOnDestroy() {
+      this.destroy$.next();
+      this.destroy$.complete();
   }
 
   calculateStatistics(customers: IZDailyCustomerDataType[]): void {

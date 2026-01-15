@@ -1,0 +1,69 @@
+<div class="edit-all-mask" *ngIf="visible">
+  <div class="edit-all-container">
+    <div class="edit-all-header">
+      <h3>Edit All</h3>
+      <button class="close-btn" (click)="closePopup()">&times;</button>
+    </div>
+
+    <form [formGroup]="editAllForm" (ngSubmit)="submitForm()">
+      <div class="edit-all-body">
+        <!-- Column Name Dropdown -->
+        <div class="form-group">
+          <label>Column Name :</label>
+          <div class="input-wrapper">
+            <select formControlName="colName">
+              <option *ngFor="let col of sortedColumns" [value]="col.binding">
+                {{ col.header }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Value Input -->
+        <div class="form-group">
+          <label>Value <span class="required">*</span> :</label>
+          <div class="input-wrapper">
+            <!-- Dynamic Input Type -->
+            <input
+              *ngIf="selectedColType !== 'dropdown'"
+              [type]="selectedColType"
+              formControlName="colValue"
+              placeholder="Enter value"
+            />
+
+            <!-- Special case for Route # Dropdown if needed, simplified to text input for now or select if data available -->
+            <!-- For now treating Route # as text input or implement dynamic loading later -->
+            <input
+              *ngIf="selectedColType === 'dropdown'"
+              type="text"
+              formControlName="colValue"
+              placeholder="Enter Route #"
+            />
+          </div>
+          <div
+            *ngIf="
+              editAllForm.get('colValue')?.invalid &&
+              editAllForm.get('colValue')?.touched
+            "
+            class="error-msg"
+          >
+            Valid value is required.
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-all-footer">
+        <button type="button" class="btn-cancel" (click)="closePopup()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn-submit"
+          [disabled]="editAllForm.invalid || isSubmitting"
+        >
+          {{ isSubmitting ? "Submitting..." : "Submit" }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

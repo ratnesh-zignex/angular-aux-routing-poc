@@ -23,6 +23,7 @@ import VectorSource from 'ol/source/Vector';
 import CircleStyle from 'ol/style/Circle';
 import Fill from 'ol/style/Fill';
 import Style from 'ol/style/Style';
+import Text from 'ol/style/Text';
 import {
   MapGridState,
   NavigationService,
@@ -59,7 +60,9 @@ export class MapComponent implements AfterViewInit, OnInit {
   private modifyInteraction!: Modify;
   isDragModeEnabled = false;
   isColorToolEnabled = false;
+
   unsavedChanges = false;
+  labelField: string = 'cid'; // Default label field
   constructor(
     private el: ElementRef,
     private route: ActivatedRoute,
@@ -160,6 +163,7 @@ export class MapComponent implements AfterViewInit, OnInit {
           route: pt.rNo,
           color,
           cid: pt.cid,
+          data: pt // Store full data for dynamic labeling
         });
         this.vectorSource.addFeature(feature);
       }
@@ -216,10 +220,25 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.selectInteraction.on('select', (evt) => {
       if (
         this.isBrowser &&
-        this.isColorToolEnabled &&
         evt.selected.length > 0
       ) {
-        this.handleColorChange(evt.selected[0]);
+        const feature = evt.selected[0];
+        // 1. Handle Color Tool
+        if (this.isColorToolEnabled) {
+             this.handleColorChange(feature);
+        }
+        
+        // 2. Broadcast Selection to Popout (Sync)
+        const cid = feature.get('cid');
+        const isPoppedOut = this.popoutService.isGridPoppedOut();
+        console.log(`Map Selection Debug: CID=${cid}, isPoppedOut=${isPoppedOut}`);
+        
+        if (cid && isPoppedOut) {
+             console.log('Map: Broadcasting selection to popout:', cid);
+             this.popoutService.broadcastEvent('SYNC_SELECTION', { cid });
+        } else {
+             console.warn('Map: Selection NOT broadcast via bridge. Missing CID or Grid not popped out.');
+        }
       }
     });
   }
@@ -228,6 +247,7 @@ export class MapComponent implements AfterViewInit, OnInit {
     const route = feature.get('route');
     const color = feature.get('color') || this.getColorForRoute(route);
     // const color = feature.get('color') || 'red';
+    const cid = feature.get('cid');
     return new Style({
       image: new CircleStyle({
         radius: 7,
@@ -236,6 +256,16 @@ export class MapComponent implements AfterViewInit, OnInit {
           color: 'white',
           width: 1,
         }),
+      }),
+      text: new Text({
+        text: this.getLabelText(feature),
+        font: '12px Calibri,sans-serif',
+        fill: new Fill({ color: '#000' }),
+        stroke: new Stroke({
+          color: '#fff',
+          width: 2,
+        }),
+        offsetY: -15, // Move label above the point
       }),
     });
   }
@@ -308,7 +338,8 @@ export class MapComponent implements AfterViewInit, OnInit {
     if (this.popoutService.isGridPoppedOut()) {
       console.log('sending message to Grid popped out');
       this.popoutService.sendMessage({
-        type: 'gridDataUpdated',
+        type: 'EVENT',
+        action: 'gridDataUpdated',
         payload: {
           points: this.points,
           state: { ...this.navBar.getCurrentMapGridState() },
@@ -327,7 +358,8 @@ export class MapComponent implements AfterViewInit, OnInit {
     // Send to pop-out grids (if any)
     if (this.popoutService.isGridPoppedOut()) {
       this.popoutService.sendMessage({
-        type: 'gridDataUpdated',
+        type: 'EVENT',
+        action: 'gridDataUpdated',
         payload: {
           singleCustomer: customer,
           points: this.points,
@@ -362,5 +394,18 @@ export class MapComponent implements AfterViewInit, OnInit {
       color += ('00' + value.toString(16)).slice(-2);
     }
     return color;
+  }
+  getLabelText(feature: Feature<Geometry>): string {
+      const data = feature.get('data');
+      if (data && this.labelField && data[this.labelField]) {
+          return String(data[this.labelField]);
+      }
+      const cid = feature.get('cid');
+      return cid ? String(cid) : '';
+  }
+
+  setLabelField(field: string) {
+      this.labelField = field;
+      this.updateMapFeatures();
   }
 }
