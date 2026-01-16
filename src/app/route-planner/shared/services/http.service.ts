@@ -11,7 +11,7 @@ import { Observable, lastValueFrom } from 'rxjs';
   providedIn: 'root',
 })
 export class HttpService {
-  private baseUrl = 'https://api.qa.zignexlogistics.com/zexrp'; // Example API base URL
+  private baseUrl = 'https://api.dev.zignexlogistics.com/zexrp'; // Example API base URL
   constructor(private http: HttpClient) {}
 
   // Example GET request with optional params

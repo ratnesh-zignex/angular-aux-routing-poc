@@ -29,6 +29,7 @@ export class MapGridComponent implements OnInit {
         takeUntil(this.destroy$)
       )
       .subscribe((params) => {
+        console.log('MapGridComponent: Route params changed:', params);
         this.view = params['view'];
         this.navService.updateMapGridState({ view: this.view });
       });
