@@ -10,7 +10,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { WjGridModule } from '@grapecity/wijmo.angular2.grid';
 import { NavigationService } from '../../shared/services/navigation.service';
 import { Subject, distinctUntilChanged, filter, takeUntil, lastValueFrom } from 'rxjs';
@@ -108,6 +108,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   
   constructor(
     private route: ActivatedRoute,
+    private router: Router,  // ✅ Added for self-navigation
     public navService: NavigationService,
     public popoutService: GridPopoutService,
     private popupService: PopupService,
@@ -375,6 +376,52 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         },
       });
     }
+  }
+
+  /**
+   * ✅ FULLY ISOLATED NAVIGATION
+   * Update ONLY this component's own route parameters without affecting ANY other components
+   * Uses pure relative navigation - NO NavigationService involvement
+   * 
+   * Benefits:
+   * - Sidebar: UNTOUCHED ✅
+   * - MapGrid: UNTOUCHED ✅  
+   * - Map: UNTOUCHED ✅
+   * - URL: Only grid segment updates ✅
+   * 
+   * @param newRoutes - Array of route numbers to navigate to
+   */
+  updateOwnRoutes(newRoutes: string[]): void {
+    if (this.isPopoutMode) {
+      console.log('PlannerComponent: Skipping self-navigation in popout mode');
+      return;
+    }
+
+    console.log('🎯 PlannerComponent: FULLY ISOLATED navigation - updating ONLY grid route parameter');
+    console.log('   Current routes:', this.routes);
+    console.log('   New routes:', newRoutes);
+
+    const routesParam = newRoutes.length > 0 ? newRoutes.join(',') : '';
+
+    // ✅ KEY: Use RELATIVE navigation from grid's own route
+    // Navigate: ../ (up to parent 'grid') / dayOfWeek / routes
+    this.router.navigate(['../', this.dayOfWeek, routesParam], {
+      relativeTo: this.route  // Navigate relative to: /rp/(mapgrid:mapgrid/daily/(grid:grid/<here>))
+    });
+
+    console.log('🎯 URL will update to: grid/' + this.dayOfWeek + '/' + routesParam);
+    console.log('✅ Sidebar: NOT touched');
+    console.log('✅ MapGrid: NOT touched');
+    console.log('✅ Map: NOT touched');
+
+    // Update local state (route.params subscription will also fire)
+    this.routes = newRoutes;
+
+    // Update NavigationService state (for other components that might care)
+    // But this does NOT trigger navigation - just state sync
+    this.navService.updateMapGridState({
+      selectedRoutes: this.routes
+    });
   }
 
   // Method to pop out the grid (only available in main window)

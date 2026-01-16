@@ -16,6 +16,11 @@ export const routes: Routes = [
   },
   {
     path: '',
+    redirectTo: '/rp',
+    pathMatch: 'full'
+  },
+  {
+    path: '',
     loadChildren: () =>
       import('./route-planner/route-planner.module').then(
         (m) => m.RoutePlannerModule

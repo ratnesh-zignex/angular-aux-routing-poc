@@ -10,6 +10,7 @@ import {
   IZRouteDataDOW,
 } from '../interfaces/interfaces';
 import { customer } from '../../../protos/customer/customer';
+import { dummyOps, loadData3Routes, dummyRouteTypes } from '../interfaces/constant';
 import { GridPopoutService } from './grid-popout.service';
 
 export interface SidebarState {
@@ -76,6 +77,10 @@ export class NavigationService {
     selectedRoutes: [],
     mapId: 'main',
   });
+
+  // Subject for triggering nested outlet updates in MapGridComponent
+  private updateNestedOutletsSubject = new Subject<MapGridState | null>();
+  public updateNestedOutletsRequest$ = this.updateNestedOutletsSubject.asObservable();
   // public navigationState$ = this.navigationState.asObservable();
   public sidebarState$ = this.sidebarState.asObservable();
   public mapGridState$ = this.mapGridState.asObservable();
@@ -139,11 +144,8 @@ export class NavigationService {
     this.navigateMapGrid(newState);
   }
   private navigateSidebar(state: SidebarState) {
-    const currentUrl = this.router.parseUrl(this.router.url);
     const mapGridState = this.getCurrentMapGridState();
-    console.log(mapGridState);
-    // const currentMapGridSegment = this.extractCurrentMapGridSegment(currentUrl);
-    console.log(currentUrl);
+
     const sidebarPath = [
       'sidebar',
       state.operationUnit,
@@ -151,90 +153,59 @@ export class NavigationService {
       state.dayOfWeek,
       state.tabName,
     ];
-    const routesParam =
-      mapGridState.selectedRoutes.length > 0
-        ? mapGridState.selectedRoutes.join(',')
-        : '';
-    const mapgridPath = [
-      'mapgrid',
-      mapGridState.view,
-      {
-        outlets: {
-          grid: ['grid', mapGridState.dayOfWeek, routesParam],
-          map: ['map', mapGridState.mapId],
-        },
-      },
-    ];
-    const initialMapGridPath = [
-      'mapgrid',
-      mapGridState.view,
-      {
-        outlets: {
-          grid: ['grid'],
-          map: ['map', mapGridState.mapId],
-        },
-      },
-    ];
+
+    // Simplified: Only specify top-level outlets
+    const mapgridPath = ['mapgrid', mapGridState.view];
+
     this.router.navigate([
       `/${state.plannerType}`,
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath,
+          mapgrid: mapgridPath  // No nested outlets!
         },
       },
     ]);
-    console.log(sidebarPath, mapgridPath);
+
+    // Trigger MapGridComponent to handle nested outlets via relative navigation
+    if (mapGridState.dayOfWeek && mapGridState.selectedRoutes.length > 0) {
+      setTimeout(() => {
+        this.updateNestedOutletsSubject.next(mapGridState);
+      }, 100);
+    }
   }
   private navigateMapGrid(state: MapGridState) {
-    const currentUrl = this.router.url;
     const currentState = this.getCurrentSidebarState();
-    console.log(this.extractCurrentSidebarFromUrl(currentUrl));
-    const routesParam =
-      state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
-    const mapgridPath = [
-      'mapgrid',
-      state.view,
-      {
-        outlets: {
-          grid: ['grid', state.dayOfWeek, routesParam],
-          map: ['map', state.mapId],
-        },
-      },
-    ];
-    const initialMapGridPath = [
-      'mapgrid',
-      state.view,
-      {
-        outlets: {
-          grid: ['grid'],
-          map: ['map', state.mapId],
-        },
-      },
+
+    // Simplified: Only specify top-level outlets
+    const mapgridPath = ['mapgrid', state.view];
+
+    const sidebarPath = [
+      'sidebar',
+      currentState.operationUnit,
+      currentState.routeType,
+      currentState.dayOfWeek,
+      currentState.tabName,
     ];
 
     this.router.navigate([
       this.primaryRoute,
       {
         outlets: {
-          sidebar: [
-            'sidebar',
-            currentState.operationUnit,
-            currentState.routeType,
-            currentState.dayOfWeek,
-            currentState.tabName,
-          ],
-          mapgrid: state.dayOfWeek ? mapgridPath : initialMapGridPath,
+          sidebar: sidebarPath,  // Preserve sidebar
+          mapgrid: mapgridPath   // No nested outlets!
         },
       },
     ]);
-    console.log(this.extractCurrentSidebarFromUrl(currentUrl), mapgridPath);
+
+    // Trigger MapGridComponent to handle nested outlets via relative navigation
+    if (state.dayOfWeek && state.selectedRoutes.length > 0) {
+      setTimeout(() => {
+        this.updateNestedOutletsSubject.next(state);
+      }, 100);
+    }
   }
   private navigateFull(sidebarState: SidebarState, mapGridState: MapGridState) {
-    const routesParam =
-      mapGridState.selectedRoutes.length > 0
-        ? mapGridState.selectedRoutes.join(',')
-        : '';
     const sidebarPath = [
       'sidebar',
       sidebarState.operationUnit,
@@ -242,41 +213,26 @@ export class NavigationService {
       sidebarState.dayOfWeek,
       sidebarState.tabName,
     ];
-    const mapgridPath = [
-      'mapgrid',
-      mapGridState.view,
-      {
-        outlets: {
-          grid: ['grid', mapGridState.dayOfWeek, routesParam],
-          map: ['map', mapGridState.mapId],
-        },
-      },
-    ];
-    const initialMapGridPath = [
-      'mapgrid',
-      mapGridState.view,
-      {
-        outlets: {
-          grid: ['grid'],
-          map: ['map', mapGridState.mapId],
-        },
-      },
-    ];
 
-    console.log(
-      'Navigate FUll function coming from Default',
-      Boolean(mapGridState.dayOfWeek),
-      mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath
-    );
+    // Simplified: Only specify top-level outlets
+    const mapgridPath = ['mapgrid', mapGridState.view];
+
     this.router.navigate([
       `/${sidebarState.plannerType}`,
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath,
+          mapgrid: mapgridPath  // No nested outlets!
         },
       },
     ]);
+
+    // Trigger MapGridComponent to handle nested outlets via relative navigation
+    if (mapGridState.dayOfWeek && mapGridState.selectedRoutes.length > 0) {
+      setTimeout(() => {
+        this.updateNestedOutletsSubject.next(mapGridState);
+      }, 150);  // Slightly longer timeout for full navigation
+    }
   }
 
   private extractCurrentSidebarFromUrl(url: string): string[] {
@@ -393,7 +349,20 @@ export class NavigationService {
           }
         }
       } else {
-        console.log('no route type');
+        console.log('no route type - checking mock data');
+        // Fallback to mock data
+        const mockRes = dummyRouteTypes;
+        for (const i in mockRes) {
+           // @ts-ignore
+           const curRes = mockRes[i] as IZRouteTypeResponse;
+           if (curRes) {
+            this.routeTypeList.push({
+              ...curRes,
+              routeType: i,
+              resiLite: curRes.resiFlag,
+            });
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching route type:', error);
@@ -498,16 +467,17 @@ export class NavigationService {
     //api.qa.zignexlogistics.com/zexrp/ftCstmr
     let res = await this.httpService.postPromiseData('ftCstmr', payload);
 
+    let loadedData: IZDailyCustomerDataType[];
+
     if (!res) {
-      if (this.selectedRoutes.length === 1) {
-      } else if (this.selectedRoutes.length == 2) {
-      } else if (this.selectedRoutes.length > 2) {
-        res = loadData3Routes
-      }
+      console.log('API failed using local mock data');
+      // Mock data is already decoded JSON, use directly
+      loadedData = loadData3Routes as unknown as IZDailyCustomerDataType[];
+    } else {
+      console.log('loaded data', res);
+      loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
+        .customerArray as IZDailyCustomerDataType[];
     }
-    console.log('loaded data', res);
-    const loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
-      .customerArray as IZDailyCustomerDataType[];
     this.processingLoadedData<IZDailyCustomerDataType>(loadedData);
     this.gridloadedData = loadedData;
     // if (isPopoutMode) this.popoutService.popoutGridData = loadedData;

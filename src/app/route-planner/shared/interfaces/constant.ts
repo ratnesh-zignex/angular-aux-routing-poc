@@ -1,4 +1,23 @@
-const dummyOps = [
+export const dummyRouteTypes = {
+    "FC": {
+        "lobDesc": "Commercial",
+        "resiFlag": false,
+        "rtTypColor": "#fd1918",
+        "rtTypDesc": "FRONT LOAD COMMERCIAL",
+        "dow": [
+            "MONDAY",
+            "TUESDAY",
+            "WEDNESDAY",
+            "THURSDAY",
+            "FRIDAY",
+            "SATURDAY",
+            "SUNDAY"
+        ],
+        "lob": "C"
+    }
+};
+
+export const dummyOps = [
   {
     opsUnitCd: '4020',
     opsUnitNm: 'Green Team of San Jose1q1q123332',
@@ -385,7 +404,7 @@ const dummyOps = [
   },
 ];
 
-const loadData3Routes = [
+export const loadData3Routes = [
   {
     cid: '0000570001',
     name: '54 W 21 St Building',
