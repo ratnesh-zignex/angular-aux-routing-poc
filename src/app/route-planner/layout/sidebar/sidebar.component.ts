@@ -76,6 +76,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(async (params) => {
+        console.log('SidebarComponent: Route params changed:', params);
         const operationUnit = params['operationUnit'];
         const routeType = params['routeType'];
         const dayOfWeek = params['dayOfWeek'];

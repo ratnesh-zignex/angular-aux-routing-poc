@@ -212,6 +212,7 @@ export class NavigationService {
         },
       },
     ];
+
     this.router.navigate([
       this.primaryRoute,
       {
@@ -323,15 +324,17 @@ export class NavigationService {
     // this.syncStatesAndNavigate();
   }
   async navigateToDefault(plannerType: string = 'rp') {
-    const res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
+    let res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
       'fetch_usr_ops',
       {
-        usrId: 'dev_login',
-        accountId: 1000004,
+        usrId: 'karishma',
+        accountId: 1000002,
         appName: this.appCode,
       }
     )) as IZOpsUnitData[];
     console.log(res);
+    if(!res)
+      res = dummyOps;
     if (res.length) {
       this.operationUnitList = [];
       this.routeTypeList = [];
@@ -370,7 +373,7 @@ export class NavigationService {
     try {
       const res: Record<string, IZRouteTypeResponse> =
         await this.httpService.getPromiseData('getRtTypDowLob', {
-          accountId: 1000004,
+          accountId: 1000002,
           opsCd: opsUnitCd,
         });
 
@@ -449,8 +452,8 @@ export class NavigationService {
     const res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
       'fetch_usr_ops',
       {
-        usrId: 'dev_login',
-        accountId: 1000004,
+        usrId: 'karishma',
+        accountId: 1000002,
         appName: this.appCode,
       }
     )) as IZOpsUnitData[];
@@ -473,28 +476,35 @@ export class NavigationService {
     let payload = {};
     if (isPopoutMode) {
       payload = {
-        acctId: '1000004',
+        acctId: '1000002',
         opsUnitCd: state?.operationUnit,
         srvcRtTypCd: [state?.routeType],
         srvcOrdrRtDow: [state?.dayOfWeek],
         srvcOrdrRtNo: state?.selectedRoutes,
-        userNm: 'dev_login',
+        userNm: 'karishma',
         lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
       };
     } else {
       payload = {
-        acctId: '1000004',
+        acctId: '1000002',
         opsUnitCd: this.selectedOperationUnit,
         srvcRtTypCd: [this.selectedRouteType],
         srvcOrdrRtDow: [this.selectedDayOfWeek],
         srvcOrdrRtNo: this.selectedRoutes,
-        userNm: 'dev_login',
+        userNm: 'karishma',
         lobCd: this.selectedRouteType === 'SL' ? 'R' : 'C',
       };
     }
     //api.qa.zignexlogistics.com/zexrp/ftCstmr
-    const res = await this.httpService.postPromiseData('ftCstmr', payload);
+    let res = await this.httpService.postPromiseData('ftCstmr', payload);
 
+    if (!res) {
+      if (this.selectedRoutes.length === 1) {
+      } else if (this.selectedRoutes.length == 2) {
+      } else if (this.selectedRoutes.length > 2) {
+        res = loadData3Routes
+      }
+    }
     console.log('loaded data', res);
     const loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
       .customerArray as IZDailyCustomerDataType[];

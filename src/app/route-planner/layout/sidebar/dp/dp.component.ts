@@ -104,7 +104,7 @@ export class DpComponent implements OnInit, OnDestroy {
   }
   async getAvailableRoutes(): Promise<void> {
     const res: any = await this.http.getPromiseData('fetch_rt_no', {
-      accountId: 1000004,
+      accountId: 1000002,
       opsCd: this.currentState.operationUnit,
       rtTyp: this.currentState.routeType,
       dow: this.currentState.dayOfWeek,
