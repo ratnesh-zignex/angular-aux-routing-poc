@@ -11,6 +11,13 @@ import {
 } from '../interfaces/interfaces';
 import { customer } from '../../../protos/customer/customer';
 import { GridPopoutService } from './grid-popout.service';
+import {
+  dummyOps,
+  dummyRouteTypes,
+  load1routes,
+  load2Routes,
+  loadData3Routes,
+} from '../interfaces/constant';
 
 export interface SidebarState {
   plannerType: string;
@@ -45,6 +52,7 @@ export interface IZRouteTypeResponse {
   lob: string;
   lobDesc: string;
   rtTypColor: string;
+  rtTypDesc: string;
 }
 @Injectable({
   providedIn: 'root',
@@ -105,7 +113,7 @@ export class NavigationService {
   constructor(
     private router: Router,
     private httpService: HttpService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
   ) {
     this.route.params.subscribe((params) => {
       console.log('IN navigation', params);
@@ -266,7 +274,7 @@ export class NavigationService {
     console.log(
       'Navigate FUll function coming from Default',
       Boolean(mapGridState.dayOfWeek),
-      mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath
+      mapGridState.dayOfWeek ? mapgridPath : initialMapGridPath,
     );
     this.router.navigate([
       `/${sidebarState.plannerType}`,
@@ -324,17 +332,17 @@ export class NavigationService {
     // this.syncStatesAndNavigate();
   }
   async navigateToDefault(plannerType: string = 'rp') {
-    let res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
-      'fetch_usr_ops',
-      {
-        usrId: 'karishma',
-        accountId: 1000002,
-        appName: this.appCode,
-      }
-    )) as IZOpsUnitData[];
+    let res: IZOpsUnitData[] = [];
+    // (await this.httpService.getPromiseData(
+    //   'fetch_usr_ops',
+    //   {
+    //     usrId: 'karishma',
+    //     accountId: 1000002,
+    //     appName: this.appCode,
+    //   }
+    // )) as IZOpsUnitData[];
     console.log(res);
-    if(!res)
-      res = dummyOps;
+    if (!res.length) res = dummyOps;
     if (res.length) {
       this.operationUnitList = [];
       this.routeTypeList = [];
@@ -371,16 +379,16 @@ export class NavigationService {
   async getRouteType(opsUnitCd: string): Promise<void> {
     //api.qa.zignexlogistics.com/zexrp/getRtTypDowLob?accountId=1000004&opsCd=SMT_COMM
     try {
-      const res: Record<string, IZRouteTypeResponse> =
-        await this.httpService.getPromiseData('getRtTypDowLob', {
-          accountId: 1000002,
-          opsCd: opsUnitCd,
-        });
+      let res: Record<string, IZRouteTypeResponse> = {};
+      // await this.httpService.getPromiseData('getRtTypDowLob', {
+      //   accountId: 1000002,
+      //   opsCd: opsUnitCd,
+      // });
 
       this.routeTypeList = [];
       this.selectedRouteType = '';
       this.dowList = [];
-
+      res = dummyRouteTypes;
       if (res && Object.keys(res).length) {
         for (const i in res) {
           const curRes: IZRouteTypeResponse | undefined = res[i];
@@ -449,14 +457,15 @@ export class NavigationService {
     }
   }
   async getOpsUnit(): Promise<void> {
-    const res: IZOpsUnitData[] = (await this.httpService.getPromiseData(
-      'fetch_usr_ops',
-      {
-        usrId: 'karishma',
-        accountId: 1000002,
-        appName: this.appCode,
-      }
-    )) as IZOpsUnitData[];
+    let res: IZOpsUnitData[] = [];
+    // (
+    //   await this.httpService.getPromiseData('fetch_usr_ops', {
+    //     usrId: 'karishma',
+    //     accountId: 1000002,
+    //     appName: this.appCode,
+    //   }),
+    // ) as IZOpsUnitData[];
+    res = dummyOps;
     if (res.length) {
       this.operationUnitList = [];
       this.routeTypeList = [];
@@ -471,7 +480,7 @@ export class NavigationService {
   async getLoadedData(
     isPopoutMode?: boolean,
     sendMapEventUpdate: boolean = true,
-    state?: MapGridState & SidebarState
+    state?: MapGridState & SidebarState,
   ) {
     let payload = {};
     if (isPopoutMode) {
@@ -496,23 +505,26 @@ export class NavigationService {
       };
     }
     //api.qa.zignexlogistics.com/zexrp/ftCstmr
-    let res = await this.httpService.postPromiseData('ftCstmr', payload);
+    let res: IZDailyCustomerDataType[] = [];
+    // await this.httpService.postPromiseData('ftCstmr', payload);
 
-    if (!res) {
+    if (!res.length) {
       if (this.selectedRoutes.length === 1) {
+        res = load1routes;
       } else if (this.selectedRoutes.length == 2) {
+        res = load2Routes;
       } else if (this.selectedRoutes.length > 2) {
-        res = loadData3Routes
+        res = loadData3Routes;
       }
     }
     console.log('loaded data', res);
-    const loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
-      .customerArray as IZDailyCustomerDataType[];
-    this.processingLoadedData<IZDailyCustomerDataType>(loadedData);
-    this.gridloadedData = loadedData;
+    // const loadedData = customer.CustomerResponse.decode(new Uint8Array(res))
+    //   .customerArray as IZDailyCustomerDataType[];
+    this.processingLoadedData<IZDailyCustomerDataType>(res);
+    this.gridloadedData = res;
     // if (isPopoutMode) this.popoutService.popoutGridData = loadedData;
-    if (sendMapEventUpdate) this.mapEventSubject.next({ points: loadedData });
-    console.log('decoded data', loadedData);
+    if (sendMapEventUpdate) this.mapEventSubject.next({ points: res });
+    console.log('decoded data', res);
   }
 
   processingLoadedData<T extends IZBaseDataType>(data: T[]): T[] {
