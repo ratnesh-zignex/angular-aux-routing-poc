@@ -90,12 +90,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
             dayOfWeek,
           });
           // Update legacy properties
-          this.navService.updateSidebarState({
-            operationUnit,
-            routeType,
-            dayOfWeek,
-            plannerType: this.getPlannerTypeFromUrl(),
-          });
+          this.navService.updateSidebarState(
+            {
+              operationUnit,
+              routeType,
+              dayOfWeek,
+              plannerType: this.getPlannerTypeFromUrl(),
+            },
+          );
           this.updateAppName();
           this.navService.selectedOperationUnit = operationUnit;
           this.navService.selectedRouteType = routeType;
@@ -106,12 +108,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
           this.navService.selectedRouteType !== routeType &&
           this.navService.selectedDayOfWeek !== dayOfWeek
         ) {
-          this.navService.updateSidebarState({
-            operationUnit,
-            routeType,
-            dayOfWeek,
-            plannerType: this.getPlannerTypeFromUrl(),
-          });
+          this.navService.updateSidebarState(
+            {
+              operationUnit,
+              routeType,
+              dayOfWeek,
+              plannerType: this.getPlannerTypeFromUrl(),
+            },
+            true,
+          );
           this.navService.selectedOperationUnit = operationUnit;
           this.navService.selectedRouteType = routeType;
           this.navService.selectedDayOfWeek = dayOfWeek;

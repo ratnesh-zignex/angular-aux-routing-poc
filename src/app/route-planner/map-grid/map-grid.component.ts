@@ -50,7 +50,7 @@ export class MapGridComponent implements OnInit, OnDestroy {
           'MapGridComponent: Received nested outlet update request',
           state,
         );
-        this.updateNestedOutlets(state!);
+        // this.updateNestedOutlets(state!);
       });
 
     // Initialize nested outlets if there's already state

@@ -66,6 +66,7 @@ export class DpComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe((params) => {
+        console.log('Sidebar DP: Route params changed:', params);
         if (
           this.navService.operationUnitList.length &&
           this.navService.routeTypeList.length
