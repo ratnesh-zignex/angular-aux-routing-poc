@@ -3,8 +3,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { lowerCase } from 'lodash';
 import { BehaviorSubject, Subject } from 'rxjs';
 import {
-  dummyOps, dummyRouteTypes, load1routes,
-  load2Routes, loadData3Routes
+  dummyOps,
+  dummyRouteTypes,
+  load1routes,
+  load2Routes,
+  loadData3Routes,
 } from '../interfaces/constant';
 import {
   IZBaseDataType,
@@ -79,9 +82,12 @@ export class NavigationService {
     mapId: 'main',
   });
 
+  public initialFirstLoad: boolean = false;
+
   // Subject for triggering nested outlet updates in MapGridComponent
   private updateNestedOutletsSubject = new Subject<MapGridState | null>();
-  public updateNestedOutletsRequest$ = this.updateNestedOutletsSubject.asObservable();
+  public updateNestedOutletsRequest$ =
+    this.updateNestedOutletsSubject.asObservable();
   // public navigationState$ = this.navigationState.asObservable();
   public sidebarState$ = this.sidebarState.asObservable();
   public mapGridState$ = this.mapGridState.asObservable();
@@ -138,11 +144,16 @@ export class NavigationService {
     this.navigateSidebar(newState);
   }
   // Update only map-grid state
-  updateMapGridState(updates: Partial<MapGridState>) {
+  updateMapGridState(
+    updates: Partial<MapGridState>,
+    skipNavigation: boolean = false,
+  ) {
     const currentState = this.getCurrentMapGridState();
     const newState = { ...currentState, ...updates };
     this.mapGridState.next(newState);
-    this.navigateMapGrid(newState);
+    if (!skipNavigation) {
+      this.navigateMapGrid(newState);
+    }
   }
   private navigateSidebar(state: SidebarState) {
     const mapGridState = this.getCurrentMapGridState();
@@ -163,7 +174,7 @@ export class NavigationService {
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapgridPath  // No nested outlets!
+          mapgrid: mapgridPath, // No nested outlets!
         },
       },
     ]);
@@ -188,13 +199,23 @@ export class NavigationService {
       currentState.dayOfWeek,
       currentState.tabName,
     ];
+    const initialMapGridPath = [
+      'mapgrid',
+      state.view,
+      {
+        outlets: {
+          grid: ['grid'],
+          map: ['map', state.mapId],
+        },
+      },
+    ];
 
     this.router.navigate([
       this.primaryRoute,
       {
         outlets: {
-          sidebar: sidebarPath,  // Preserve sidebar
-          mapgrid: mapgridPath   // No nested outlets!
+          sidebar: sidebarPath, // Preserve sidebar
+          mapgrid: this.initialFirstLoad ? mapgridPath : initialMapGridPath, // No nested outlets!
         },
       },
     ]);
@@ -203,6 +224,7 @@ export class NavigationService {
     if (state.dayOfWeek && state.selectedRoutes.length > 0) {
       setTimeout(() => {
         this.updateNestedOutletsSubject.next(state);
+        this.initialFirstLoad = true;
       }, 100);
     }
   }
@@ -214,6 +236,16 @@ export class NavigationService {
       sidebarState.dayOfWeek,
       sidebarState.tabName,
     ];
+    const initialMapGridPath = [
+      'mapgrid',
+      mapGridState.view,
+      {
+        outlets: {
+          grid: ['grid'],
+          map: ['map', mapGridState.mapId],
+        },
+      },
+    ];
 
     // Simplified: Only specify top-level outlets
     const mapgridPath = ['mapgrid', mapGridState.view];
@@ -221,23 +253,23 @@ export class NavigationService {
     console.log(
       'Navigate FUll function coming from Default',
       Boolean(mapGridState.dayOfWeek),
-      mapGridState.dayOfWeek ? mapgridPath : [],
+      initialMapGridPath,
     );
     this.router.navigate([
       `/${sidebarState.plannerType}`,
       {
         outlets: {
           sidebar: sidebarPath,
-          mapgrid: mapgridPath  // No nested outlets!
+          mapgrid: this.initialFirstLoad ? mapgridPath : initialMapGridPath,
         },
       },
     ]);
-
     // Trigger MapGridComponent to handle nested outlets via relative navigation
     if (mapGridState.dayOfWeek && mapGridState.selectedRoutes.length > 0) {
       setTimeout(() => {
         this.updateNestedOutletsSubject.next(mapGridState);
-      }, 150);  // Slightly longer timeout for full navigation
+        this.initialFirstLoad = true;
+      }, 150); // Slightly longer timeout for full navigation
     }
   }
 
@@ -286,6 +318,7 @@ export class NavigationService {
     // this.syncStatesAndNavigate();
   }
   async navigateToDefault(plannerType: string = 'rp') {
+    console.log('Navigating to default state');
     let res: IZOpsUnitData[] = [];
     // (await this.httpService.getPromiseData(
     //   'fetch_usr_ops',
@@ -359,9 +392,9 @@ export class NavigationService {
         // Fallback to mock data
         const mockRes = dummyRouteTypes;
         for (const i in mockRes) {
-           // @ts-ignore
-           const curRes = mockRes[i] as IZRouteTypeResponse;
-           if (curRes) {
+          // @ts-ignore
+          const curRes = mockRes[i] as IZRouteTypeResponse;
+          if (curRes) {
             this.routeTypeList.push({
               ...curRes,
               routeType: i,

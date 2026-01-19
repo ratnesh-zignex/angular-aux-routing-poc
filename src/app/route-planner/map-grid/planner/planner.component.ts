@@ -13,16 +13,22 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { WjGridModule } from '@grapecity/wijmo.angular2.grid';
 import { NavigationService } from '../../shared/services/navigation.service';
-import { Subject, distinctUntilChanged, filter, takeUntil, lastValueFrom } from 'rxjs';
+import {
+  Subject,
+  distinctUntilChanged,
+  filter,
+  takeUntil,
+  lastValueFrom,
+} from 'rxjs';
 import { FlexGrid } from '@grapecity/wijmo.grid';
 import { GridPopoutService } from '../../shared/services/grid-popout.service';
 import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
 import { state } from '@angular/animations';
-import { 
-  IZWijmoGridBtn, 
-  IZGridBtnEnum, 
-  gridBtnList, 
-  popoutGridBtnList 
+import {
+  IZWijmoGridBtn,
+  IZGridBtnEnum,
+  gridBtnList,
+  popoutGridBtnList,
 } from '../../shared/interfaces/grid-button.interface';
 import { PopupService } from '../../shared/services/popup.service';
 import { PopupManagerComponent } from '../../popup-manager/popup-manager.component';
@@ -42,7 +48,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   mainGridBtnList: IZWijmoGridBtn[] = gridBtnList;
   popoutGridBtnList: IZWijmoGridBtn[] = popoutGridBtnList;
   currentGridBtnList: IZWijmoGridBtn[] = [];
-  
+
   columns: any[] = [
     {
       binding: 'cid',
@@ -105,21 +111,23 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   isBrowser: boolean = false;
   @Input() isPopoutMode: boolean = false; // Detect if running in popout mode
   private broadcastChannel: BroadcastChannel | null = null; // For popout communication
-  
+
   constructor(
     private route: ActivatedRoute,
-    private router: Router,  // ✅ Added for self-navigation
+    private router: Router, // ✅ Added for self-navigation
     public navService: NavigationService,
     public popoutService: GridPopoutService,
     private popupService: PopupService,
     private httpService: HttpService,
     private mapService: MapService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     // Set appropriate button list based on mode
-    this.currentGridBtnList = this.isPopoutMode ? this.popoutGridBtnList : this.mainGridBtnList;
+    this.currentGridBtnList = this.isPopoutMode
+      ? this.popoutGridBtnList
+      : this.mainGridBtnList;
 
     if (this.isBrowser) {
       // Listen for map events from NavigationService (for map-to-grid updates)
@@ -137,67 +145,79 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     }
   }
 
-
   ngOnInit() {
-    this.currentGridBtnList = this.isPopoutMode ? this.popoutGridBtnList : this.mainGridBtnList;
+    this.currentGridBtnList = this.isPopoutMode
+      ? this.popoutGridBtnList
+      : this.mainGridBtnList;
     if (this.isBrowser) {
-        // Initialize listeners for popout mode (Map Selection Sync)
-        if (this.isPopoutMode) {
-            console.log('Planner: Initializing Popout Listeners for SYNC_SELECTION');
-            this.popoutService.listenForEvent('SYNC_SELECTION')
-                .pipe(takeUntil(this.destroy$))
-                .subscribe(msg => {
-                    console.log('Planner (Popout): Received SYNC_SELECTION:', msg);
-                    if (msg.payload && msg.payload.cid) {
-                        this.selectRowByCid(msg.payload.cid);
-                    } else {
-                        console.warn('Planner: Invalid payload for SYNC_SELECTION', msg);
-                    }
-                });
-        }
+      // Initialize listeners for popout mode (Map Selection Sync)
+      if (this.isPopoutMode) {
+        console.log(
+          'Planner: Initializing Popout Listeners for SYNC_SELECTION',
+        );
+        this.popoutService
+          .listenForEvent('SYNC_SELECTION')
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((msg) => {
+            console.log('Planner (Popout): Received SYNC_SELECTION:', msg);
+            if (msg.payload && msg.payload.cid) {
+              this.selectRowByCid(msg.payload.cid);
+            } else {
+              console.warn('Planner: Invalid payload for SYNC_SELECTION', msg);
+            }
+          });
+      }
 
-          // 1. Listen for Weekly Stats Requests
-          this.popoutService.listenForRequest('GET_WEEKLY_STATS')
-             .pipe(takeUntil(this.destroy$))
-             .subscribe(msg => {
-                 console.log('Planner: Received GET_WEEKLY_STATS request');
-                 const routeType = msg.payload?.routeType;
-                 // Call actual HTTP service
-                 // Assuming httpService.getPromiseResponse returns a Promise
-                 this.httpService.getPromiseData('getWeeklyStatistics', {
-                    requestParams: routeType
-                 }).then((res: any) => {
-                     this.popoutService.sendResponse(msg.id!, res);
-                 }).catch((err: any) => {
-                     this.popoutService.sendResponse(msg.id!, null, err);
-                 });
-             });
+      // 1. Listen for Weekly Stats Requests
+      this.popoutService
+        .listenForRequest('GET_WEEKLY_STATS')
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((msg) => {
+          console.log('Planner: Received GET_WEEKLY_STATS request');
+          const routeType = msg.payload?.routeType;
+          // Call actual HTTP service
+          // Assuming httpService.getPromiseResponse returns a Promise
+          this.httpService
+            .getPromiseData('getWeeklyStatistics', {
+              requestParams: routeType,
+            })
+            .then((res: any) => {
+              this.popoutService.sendResponse(msg.id!, res);
+            })
+            .catch((err: any) => {
+              this.popoutService.sendResponse(msg.id!, null, err);
+            });
+        });
 
+      // 2. Broadcast Map Colors
+      this.mapService.colorBySubject
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((colors) => {
+          this.popoutService.broadcastEvent(
+            'UPDATE_COLORS',
+            colors.boundaryColor,
+          );
+        });
 
+      // 3. Listen for Edit All Trigger (Local Event)
+      this.popoutService.editAllTrigger$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((payload) => {
+          this.handleEditAll(payload);
+        });
 
-          // 2. Broadcast Map Colors
-          this.mapService.colorBySubject
-             .pipe(takeUntil(this.destroy$))
-             .subscribe(colors => {
-                 this.popoutService.broadcastEvent('UPDATE_COLORS', colors.boundaryColor);
-             });
-
-          // 3. Listen for Edit All Trigger (Local Event)
-          this.popoutService.editAllTrigger$
-             .pipe(takeUntil(this.destroy$))
-             .subscribe(payload => {
-                 this.handleEditAll(payload);
-             });
-
-          // 4. Listen for Remote Edit All Request (From Popout -> Main)
-          this.popoutService.listenForRequest('REQUEST_EDIT_ALL')
-             .pipe(takeUntil(this.destroy$))
-             .subscribe(msg => {
-                 console.log('Planner (Main): Received REQUEST_EDIT_ALL:', msg.payload);
-                 // Execute locally in Main Window
-                 this.handleEditAll(msg.payload, msg.id);
-             });
-
+      // 4. Listen for Remote Edit All Request (From Popout -> Main)
+      this.popoutService
+        .listenForRequest('REQUEST_EDIT_ALL')
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((msg) => {
+          console.log(
+            'Planner (Main): Received REQUEST_EDIT_ALL:',
+            msg.payload,
+          );
+          // Execute locally in Main Window
+          this.handleEditAll(msg.payload, msg.id);
+        });
 
       this.popoutService.setGridPoppedOut(this.isPopoutMode);
       // Listen for grid data updates from popout
@@ -222,7 +242,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             if (this.flexGrid && typeof this.flexGrid.refresh === 'function') {
               this.flexGrid.refresh();
             }
-            this.navService.getLoadedData(false, false)
+            this.navService.getLoadedData(false, false);
           });
         this.navService.loadedDataSubject$
           .pipe(takeUntil(this.destroy$))
@@ -235,16 +255,23 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           .pipe(
             distinctUntilChanged(),
             filter(() => !this.isNavigating),
-            takeUntil(this.destroy$)
+            takeUntil(this.destroy$),
           )
           .subscribe((params) => {
             this.routes = params['routes'] ? params['routes'].split(',') : [];
             this.dayOfWeek = params['dayOfWeek'];
             this.updateGridDataAndMap();
-            this.navService.updateMapGridState({
-              selectedRoutes: this.routes,
-              dayOfWeek: this.dayOfWeek,
-            });
+            console.log(
+              'Planner: Route params changed: Navigating to Map Grid state',
+              params,
+            );
+            this.navService.updateMapGridState(
+              {
+                selectedRoutes: this.routes,
+                dayOfWeek: this.dayOfWeek,
+              },
+              true,
+            );
           });
       } else if (this.isPopoutMode) {
         console.log('PopoutGrid: In popout mode, waiting for data...');
@@ -294,7 +321,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
   updateGridDataFromMapPoints(
     mapPoints: any[],
-    initializedPopoutData: Boolean = false
+    initializedPopoutData: Boolean = false,
   ) {
     console.log('updateGridDataFromMapPoints called with:', mapPoints);
     if (mapPoints.length === 0) {
@@ -309,7 +336,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       this.gridData = this.gridData.map((row) => {
         const updatedPoint = updatedPointsMap.get(row.cid);
         if (updatedPoint) {
-          console.log(`Updating customer ${row.cid}: lat=${updatedPoint.lat}, lon=${updatedPoint.lon}`);
           return {
             ...row,
             lat: updatedPoint.lat,
@@ -322,7 +348,11 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       console.log('Updated grid data:', this.gridData);
       this.popoutService.popoutGridData = this.gridData;
       // Refresh Wijmo grid after data update
-      if (this.isBrowser && this.flexGrid && typeof this.flexGrid.refresh === 'function') {
+      if (
+        this.isBrowser &&
+        this.flexGrid &&
+        typeof this.flexGrid.refresh === 'function'
+      ) {
         console.log('Refreshing grid...');
         this.flexGrid.refresh();
       }
@@ -331,7 +361,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
   updateSingleCustomer(customer: IZDailyCustomerDataType) {
     console.log('Updating single customer:', customer);
-    const index = this.gridData.findIndex(row => row.cid === customer.cid);
+    const index = this.gridData.findIndex((row) => row.cid === customer.cid);
     if (index !== -1) {
       this.gridData[index] = {
         ...this.gridData[index],
@@ -341,7 +371,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       console.log(`Updated customer ${customer.cid} at index ${index}`);
       this.popoutService.popoutGridData = this.gridData;
       // Refresh only the specific row in Wijmo grid
-      if (this.isBrowser && this.flexGrid && this.flexGrid.collectionView && typeof this.flexGrid.collectionView.refresh === 'function') {
+      if (
+        this.isBrowser &&
+        this.flexGrid &&
+        this.flexGrid.collectionView &&
+        typeof this.flexGrid.collectionView.refresh === 'function'
+      ) {
         this.flexGrid.collectionView.refresh();
       }
     }
@@ -382,13 +417,13 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    * ✅ FULLY ISOLATED NAVIGATION
    * Update ONLY this component's own route parameters without affecting ANY other components
    * Uses pure relative navigation - NO NavigationService involvement
-   * 
+   *
    * Benefits:
    * - Sidebar: UNTOUCHED ✅
-   * - MapGrid: UNTOUCHED ✅  
+   * - MapGrid: UNTOUCHED ✅
    * - Map: UNTOUCHED ✅
    * - URL: Only grid segment updates ✅
-   * 
+   *
    * @param newRoutes - Array of route numbers to navigate to
    */
   updateOwnRoutes(newRoutes: string[]): void {
@@ -397,7 +432,9 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       return;
     }
 
-    console.log('🎯 PlannerComponent: FULLY ISOLATED navigation - updating ONLY grid route parameter');
+    console.log(
+      '🎯 PlannerComponent: FULLY ISOLATED navigation - updating ONLY grid route parameter',
+    );
     console.log('   Current routes:', this.routes);
     console.log('   New routes:', newRoutes);
 
@@ -406,10 +443,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     // ✅ KEY: Use RELATIVE navigation from grid's own route
     // Navigate: ../ (up to parent 'grid') / dayOfWeek / routes
     this.router.navigate(['../', this.dayOfWeek, routesParam], {
-      relativeTo: this.route  // Navigate relative to: /rp/(mapgrid:mapgrid/daily/(grid:grid/<here>))
+      relativeTo: this.route, // Navigate relative to: /rp/(mapgrid:mapgrid/daily/(grid:grid/<here>))
     });
-
-    console.log('🎯 URL will update to: grid/' + this.dayOfWeek + '/' + routesParam);
+    console.log(this.route);
+    console.log(
+      '🎯 URL will update to: grid/' + this.dayOfWeek + '/' + routesParam,
+    );
     console.log('✅ Sidebar: NOT touched');
     console.log('✅ MapGrid: NOT touched');
     console.log('✅ Map: NOT touched');
@@ -420,7 +459,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     // Update NavigationService state (for other components that might care)
     // But this does NOT trigger navigation - just state sync
     this.navService.updateMapGridState({
-      selectedRoutes: this.routes
+      selectedRoutes: this.routes,
     });
   }
 
@@ -432,10 +471,10 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       this.popoutService.isGridPoppedOut()
     )
       return;
-    
+
     console.log('popOutGrid called - current gridData:', this.gridData);
     console.log('Routes:', this.routes, 'DayOfWeek:', this.dayOfWeek);
-    
+
     const sidebarState = this.navService.getCurrentMapGridState();
     const navSidebarState = this.navService.getCurrentSidebarState();
     const view = sidebarState.view;
@@ -446,14 +485,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       this.dayOfWeek && routesParam
         ? `popout-grid/${view}/${this.dayOfWeek}/${routesParam}`
         : 'popout-grid';
-    
+
     console.log('Opening popout with URL:', popoutUrl);
-    
+
     // Open new window with proper URL
     const newWindow = window.open(
       popoutUrl,
       'GridPopout',
-      'width=1000,height=700'
+      'width=1000,height=700',
     );
     if (newWindow) {
       this.popoutService.setGridPopoutWindow(newWindow);
@@ -478,14 +517,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             },
             popoutMode: true,
             popoutState: {
-                plannerType: navSidebarState.plannerType,
-                selectedOpsUnit: navSidebarState.operationUnit,
-                selectedRouteType: navSidebarState.routeType,
-                colors: [] // Will be updated via subscription shortly
-            }
+              plannerType: navSidebarState.plannerType,
+              selectedOpsUnit: navSidebarState.operationUnit,
+              selectedRouteType: navSidebarState.routeType,
+              colors: [], // Will be updated via subscription shortly
+            },
           },
         });
-        
+
         // Trigger color update explicitly if possible
         // this.mapService.colorBySubject.pipe(take(1)).subscribe(...)
       }, 1000);
@@ -552,7 +591,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   handleToolbarClick(btnId: IZGridBtnEnum): void {
     console.log('Toolbar button clicked:', btnId);
-    
+
     switch (btnId) {
       case IZGridBtnEnum.Refresh:
         this.refreshGrid();
@@ -597,13 +636,15 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   }
 
   openEditAllPopup(): void {
-    if (!this.flexGrid || this.flexGrid.rows.filter(r => r.isSelected).length === 0) {
+    if (
+      !this.flexGrid ||
+      this.flexGrid.rows.filter((r) => r.isSelected).length === 0
+    ) {
       alert('Please select at least one row to edit.');
       return;
     }
     this.popupService.openPopup('EditAll' as any, {});
   }
-
 
   /**
    * Refresh grid data
@@ -617,21 +658,23 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    * Programmatically select a row by Customer ID (cid)
    */
   selectRowByCid(cid: string): void {
-      if (!this.flexGrid) {
-          console.warn('Planner: FlexGrid not ready for selection.');
-          return;
+    if (!this.flexGrid) {
+      console.warn('Planner: FlexGrid not ready for selection.');
+      return;
+    }
+
+    console.log(
+      `Planner: Attempting to select row for CID=${cid} among ${this.flexGrid.rows.length} rows`,
+    );
+    // Iterate over rows to find the matching customer
+    for (const row of this.flexGrid.rows) {
+      if (row.dataItem && row.dataItem.cid === cid) {
+        console.log('Planner: Found matching row at index:', row.index);
+        row.isSelected = true;
+        this.flexGrid.scrollIntoView(row.index, 0); // Scroll to the selected row
+        break;
       }
-      
-      console.log(`Planner: Attempting to select row for CID=${cid} among ${this.flexGrid.rows.length} rows`);
-      // Iterate over rows to find the matching customer
-      for (const row of this.flexGrid.rows) {
-          if (row.dataItem && row.dataItem.cid === cid) {
-              console.log('Planner: Found matching row at index:', row.index);
-              row.isSelected = true;
-              this.flexGrid.scrollIntoView(row.index, 0); // Scroll to the selected row
-              break;
-          }
-      }
+    }
   }
 
   /**
@@ -639,16 +682,16 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   redisplayOnMap(): void {
     if (!this.flexGrid) return;
-    
-    const selectedRows = this.flexGrid.rows.filter(row => row.isSelected);
+
+    const selectedRows = this.flexGrid.rows.filter((row) => row.isSelected);
     if (selectedRows.length === 0) {
       console.log('No rows selected for redisplay');
       return;
     }
 
-    const selectedCustomers = selectedRows.map(row => row.dataItem);
+    const selectedCustomers = selectedRows.map((row) => row.dataItem);
     console.log('Redisplaying customers on map:', selectedCustomers);
-    
+
     // Send selected customers to map
     this.navService.mapEventSubject.next({ points: selectedCustomers });
   }
@@ -667,14 +710,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   openStatistics(): void {
     console.log('Opening statistics popup...');
-    
+
     // Open statistics popup with grid data
     this.popupService.openPopup('statistics', {
       customers: this.gridData,
       routes: this.routes,
       dayOfWeek: this.dayOfWeek,
       operationUnit: '2027',
-      routeType: 'CC'
+      routeType: 'CC',
     });
   }
 
@@ -692,7 +735,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
     // Open field calculator popup
     this.popupService.openPopup('fieldCalculator' as any, {
-      gridInstance: this.flexGrid // Pass grid instance or data
+      gridInstance: this.flexGrid, // Pass grid instance or data
     });
   }
 
@@ -701,12 +744,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   openGeocodePopup(): void {
     if (!this.flexGrid) return;
-    
-    const selectedRows = this.flexGrid.rows.filter(row => row.isSelected);
+
+    const selectedRows = this.flexGrid.rows.filter((row) => row.isSelected);
     const geocodeType = selectedRows.length > 0 ? 'Selected' : 'All';
-    
+
     console.log(`Opening geocode popup for ${geocodeType} customers...`);
-    
+
     // TODO: Implement geocode popup via broadcast channel
     if (this.isPopoutMode && this.broadcastChannel) {
       this.broadcastChannel.postMessage({
@@ -714,12 +757,13 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         payload: {
           popupType: 'geocode',
           data: {
-            customers: geocodeType === 'Selected' 
-              ? selectedRows.map(row => row.dataItem)
-              : this.gridData,
-            type: geocodeType
-          }
-        }
+            customers:
+              geocodeType === 'Selected'
+                ? selectedRows.map((row) => row.dataItem)
+                : this.gridData,
+            type: geocodeType,
+          },
+        },
       });
     }
   }
@@ -729,26 +773,30 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   deleteSelectedRows(): void {
     if (!this.flexGrid) return;
-    
-    const selectedRows = this.flexGrid.rows.filter(row => row.isSelected);
+
+    const selectedRows = this.flexGrid.rows.filter((row) => row.isSelected);
     if (selectedRows.length === 0) {
       console.log('No rows selected for deletion');
       return;
     }
 
-    if (confirm(`Are you sure you want to delete ${selectedRows.length} customer(s)?`)) {
-      const selectedCustomers = selectedRows.map(row => row.dataItem);
+    if (
+      confirm(
+        `Are you sure you want to delete ${selectedRows.length} customer(s)?`,
+      )
+    ) {
+      const selectedCustomers = selectedRows.map((row) => row.dataItem);
       console.log('Deleting customers:', selectedCustomers);
-      
+
       // Remove from grid data
       this.gridData = this.gridData.filter(
-        customer => !selectedCustomers.find(sc => sc.cid === customer.cid)
+        (customer) => !selectedCustomers.find((sc) => sc.cid === customer.cid),
       );
-      
+
       // Update map
       // Update map and sync across bridge
       this.updateMapWithGridChanges();
-      
+
       // Refresh grid
       if (this.flexGrid && typeof this.flexGrid.refresh === 'function') {
         this.flexGrid.refresh();
@@ -761,11 +809,11 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   exportGrid(): void {
     if (!this.flexGrid) return;
-    
+
     console.log('Exporting grid to Excel...');
-    
+
     const fileName = `customers_${this.dayOfWeek}_${new Date().getTime()}.xlsx`;
-    
+
     // TODO: Install @grapecity/wijmo.grid.xlsx to enable Excel export
     // wjcGridXlsx.FlexGridXlsxConverter.saveAsync(
     //   this.flexGrid,
@@ -775,32 +823,32 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     //   },
     //   fileName
     // );
-    
+
     // For now, export as CSV
     this.exportAsCSV(fileName.replace('.xlsx', '.csv'));
   }
-  
+
   /**
    * Export grid data as CSV
    */
   private exportAsCSV(fileName: string): void {
     if (!this.gridData || this.gridData.length === 0) return;
-    
+
     // Get column headers
     const headers = Object.keys(this.gridData[0]);
-    
+
     // Create CSV content
     let csvContent = headers.join(',') + '\n';
-    this.gridData.forEach(row => {
-      const values = headers.map(header => {
+    this.gridData.forEach((row) => {
+      const values = headers.map((header) => {
         const value = (row as any)[header];
-        return typeof value === 'string' && value.includes(',') 
-          ? `"${value}"` 
+        return typeof value === 'string' && value.includes(',')
+          ? `"${value}"`
           : value;
       });
       csvContent += values.join(',') + '\n';
     });
-    
+
     // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -818,9 +866,9 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   removeFilters(): void {
     if (!this.flexGrid) return;
-    
+
     console.log('Removing filters and sorting...');
-    
+
     // Clear column filters if available
     // Note: columnFilters requires @grapecity/wijmo.grid.filter module
     try {
@@ -831,9 +879,13 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     } catch (e) {
       console.log('Column filters not available');
     }
-    
+
     // Clear sorting
-    if (this.flexGrid && this.flexGrid.collectionView && this.flexGrid.collectionView.sortDescriptions) {
+    if (
+      this.flexGrid &&
+      this.flexGrid.collectionView &&
+      this.flexGrid.collectionView.sortDescriptions
+    ) {
       this.flexGrid.collectionView.sortDescriptions.clear();
     }
   }
@@ -843,20 +895,20 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
    */
   putGridBack(): void {
     if (!this.isPopoutMode) return;
-    
+
     console.log('Putting grid back to parent window...');
-    
+
     // Save current grid state
     const gridState = {
       data: this.gridData,
-      columns: this.flexGrid?.columns.map(col => ({
+      columns: this.flexGrid?.columns.map((col) => ({
         binding: col.binding,
         header: col.header,
         width: col.width,
-        visible: col.visible
-      }))
+        visible: col.visible,
+      })),
     };
-    
+
     // Send message to parent window
     this.popoutService.sendMessage({
       type: 'EVENT',
@@ -867,7 +919,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         routes: this.routes,
       },
     });
-    
+
     // Close window if in browser
     if (this.isBrowser && window.opener) {
       window.close();
@@ -877,97 +929,111 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   // Handles the actual API call (or proxies it to Main Window)
   // Handles the actual API call (or proxies it to Main Window)
   handleEditAll(payload: any, requestId?: string): void {
-      // If we don't have a grid AND we don't have UIDs (from Popout), we can't do anything.
-      if (!this.flexGrid && !payload.uids) {
-          console.warn('Edit All: FlexGrid not available and no UIDs specificed.');
-          return;
+    // If we don't have a grid AND we don't have UIDs (from Popout), we can't do anything.
+    if (!this.flexGrid && !payload.uids) {
+      console.warn('Edit All: FlexGrid not available and no UIDs specificed.');
+      return;
+    }
+
+    // If in Popout Mode, we MUST proxy this to Main Window because Popout lacks complete Navigation State (ops unit, etc.)
+    if (this.isPopoutMode) {
+      console.log(
+        'Edit All (Popout): Proxying request to Main Window via Bridge...',
+      );
+
+      // Get selection from LOCAL grid (in Popout)
+      const selectedRows = this.flexGrid.rows.filter((r) => r.isSelected);
+      if (selectedRows.length === 0) {
+        alert('Please select at least one row to edit.');
+        return;
       }
+      const uids = selectedRows.map((r) => ({ orId: r.dataItem.orId }));
 
-      // If in Popout Mode, we MUST proxy this to Main Window because Popout lacks complete Navigation State (ops unit, etc.)
-      if (this.isPopoutMode) {
-          console.log('Edit All (Popout): Proxying request to Main Window via Bridge...');
-          
-          // Get selection from LOCAL grid (in Popout)
-          const selectedRows = this.flexGrid.rows.filter(r => r.isSelected);
-          if (selectedRows.length === 0) {
-              alert('Please select at least one row to edit.');
-              return;
-          }
-          const uids = selectedRows.map(r => ({ orId: r.dataItem.orId }));
-          
-          // Construct Payload with UIDs
-          const proxyPayload = { ...payload, uids };
+      // Construct Payload with UIDs
+      const proxyPayload = { ...payload, uids };
 
-          // Send Request to Main Window
-          // Note: REQUEST_EDIT_ALL expects Main to execute and reply.
-          // We don't need to subscribe to response here other than for logging, 
-          // because Main will broadcast 'gridDataUpdated' which we listen to.
-          this.popoutService.sendRequest('REQUEST_EDIT_ALL', proxyPayload).subscribe({
-              next: () => console.log('Edit All (Popout): Main window processed request.'),
-              error: (err) => {
-                  console.error('Edit All (Popout): Proxy failed', err);
-                  alert('Edit All Failed: ' + (err.message || 'Unknown Error'));
-              }
-          });
-          return;
-      }
-
-      // --- MAIN WINDOW EXECUTION BELOW ---
-
-      // If Payload has UIDs (from Popout), use them. Otherwise, use local selection.
-      let uids = payload.uids;
-      if (!uids) {
-          const selectedRows = this.flexGrid.rows.filter(r => r.isSelected);
-          if (selectedRows.length === 0) {
-              alert('Please select at least one row to edit.');
-              return;
-          }
-          uids = selectedRows.map(r => ({ orId: r.dataItem.orId }));
-      }
-
-      const apiPayload = {
-          clKey: payload.clKey,
-          clVal: payload.clVal,
-          uids: uids,
-          plannerType: this.popoutService.popoutState.plannerType || 'Daily',
-          acctId: 1000004,
-          opsUnitCd: this.popoutService.popoutState.selectedOpsUnit || this.navService.selectedOperationUnit || '',
-          routeType: this.popoutService.popoutState.selectedRouteType || this.navService.selectedRouteType || '',
-          dow: this.navService.selectedDayOfWeek || 'MONDAY',
-          appName: 'RP',
-          usrNm: 'dev_login'
-      };
-
-      console.log('Edit All: Sending API request', apiPayload);
-
-      this.httpService.postDataText('updateCustomerData', apiPayload).subscribe({
-          next: async () => {
-              console.log('Edit All Success. Refreshing data...');
-              
-              // If this was a request from Popout, send success response
-              if (requestId) {
-                  this.popoutService.sendResponse(requestId, 'SUCCESS');
-              }
-
-              // Refresh data (and update local map)
-              await this.navService.getLoadedData(false, true);
-              
-              // If grid is popped out, explicitly broadcast the new data
-              if (this.popoutService.isGridPoppedOut()) {
-                   const points = this.navService.gridloadedData;
-                   console.log('PlannerComponent: Broadcasting refreshed data to Popout', points?.length);
-                   this.popoutService.broadcastEvent('gridDataUpdated', { points });
-              }
-          },
+      // Send Request to Main Window
+      // Note: REQUEST_EDIT_ALL expects Main to execute and reply.
+      // We don't need to subscribe to response here other than for logging,
+      // because Main will broadcast 'gridDataUpdated' which we listen to.
+      this.popoutService
+        .sendRequest('REQUEST_EDIT_ALL', proxyPayload)
+        .subscribe({
+          next: () =>
+            console.log('Edit All (Popout): Main window processed request.'),
           error: (err) => {
-              console.error('Edit All Failed', err);
-              if (requestId) {
-                  const safeError = { message: err.message || 'Unknown Error' };
-                  this.popoutService.sendResponse(requestId, null, safeError);
-              }
-              alert('Edit All Failed: ' + (err.message || 'Unknown Error'));
-          }
-      });
+            console.error('Edit All (Popout): Proxy failed', err);
+            alert('Edit All Failed: ' + (err.message || 'Unknown Error'));
+          },
+        });
+      return;
+    }
+
+    // --- MAIN WINDOW EXECUTION BELOW ---
+
+    // If Payload has UIDs (from Popout), use them. Otherwise, use local selection.
+    let uids = payload.uids;
+    if (!uids) {
+      const selectedRows = this.flexGrid.rows.filter((r) => r.isSelected);
+      if (selectedRows.length === 0) {
+        alert('Please select at least one row to edit.');
+        return;
+      }
+      uids = selectedRows.map((r) => ({ orId: r.dataItem.orId }));
+    }
+
+    const apiPayload = {
+      clKey: payload.clKey,
+      clVal: payload.clVal,
+      uids: uids,
+      plannerType: this.popoutService.popoutState.plannerType || 'Daily',
+      acctId: 1000004,
+      opsUnitCd:
+        this.popoutService.popoutState.selectedOpsUnit ||
+        this.navService.selectedOperationUnit ||
+        '',
+      routeType:
+        this.popoutService.popoutState.selectedRouteType ||
+        this.navService.selectedRouteType ||
+        '',
+      dow: this.navService.selectedDayOfWeek || 'MONDAY',
+      appName: 'RP',
+      usrNm: 'dev_login',
+    };
+
+    console.log('Edit All: Sending API request', apiPayload);
+
+    this.httpService.postDataText('updateCustomerData', apiPayload).subscribe({
+      next: async () => {
+        console.log('Edit All Success. Refreshing data...');
+
+        // If this was a request from Popout, send success response
+        if (requestId) {
+          this.popoutService.sendResponse(requestId, 'SUCCESS');
+        }
+
+        // Refresh data (and update local map)
+        await this.navService.getLoadedData(false, true);
+
+        // If grid is popped out, explicitly broadcast the new data
+        if (this.popoutService.isGridPoppedOut()) {
+          const points = this.navService.gridloadedData;
+          console.log(
+            'PlannerComponent: Broadcasting refreshed data to Popout',
+            points?.length,
+          );
+          this.popoutService.broadcastEvent('gridDataUpdated', { points });
+        }
+      },
+      error: (err) => {
+        console.error('Edit All Failed', err);
+        if (requestId) {
+          const safeError = { message: err.message || 'Unknown Error' };
+          this.popoutService.sendResponse(requestId, null, safeError);
+        }
+        alert('Edit All Failed: ' + (err.message || 'Unknown Error'));
+      },
+    });
   }
 
   ngOnDestroy() {

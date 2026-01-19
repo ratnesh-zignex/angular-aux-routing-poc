@@ -1,6 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute, Router, RouterOutlet } from "@angular/router";
-import { MapGridState, NavigationService } from '../shared/services/navigation.service';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
+import {
+  MapGridState,
+  NavigationService,
+} from '../shared/services/navigation.service';
 import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
 
 @Component({
@@ -8,7 +11,7 @@ import { Subject, distinctUntilChanged, filter, takeUntil } from 'rxjs';
   standalone: true,
   imports: [RouterOutlet],
   templateUrl: './map-grid.component.html',
-  styleUrl: './map-grid.component.scss'
+  styleUrl: './map-grid.component.scss',
 })
 export class MapGridComponent implements OnInit, OnDestroy {
   showMapOnly = false;
@@ -19,7 +22,7 @@ export class MapGridComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private navService: NavigationService
+    private navService: NavigationService,
   ) {}
 
   ngOnInit() {
@@ -28,22 +31,25 @@ export class MapGridComponent implements OnInit, OnDestroy {
       .pipe(
         distinctUntilChanged(),
         filter(() => !this.isNavigating),
-        takeUntil(this.destroy$)
+        takeUntil(this.destroy$),
       )
       .subscribe((params) => {
         console.log('MapGridComponent: Route params changed:', params);
         this.view = params['view'];
-        this.navService.updateMapGridState({ view: this.view });
+        this.navService.updateMapGridState({ view: this.view }, true);
       });
 
     // Listen for nested outlet update requests from NavigationService
     this.navService.updateNestedOutletsRequest$
       .pipe(
-        filter(state => state !== null),
-        takeUntil(this.destroy$)
+        filter((state) => state !== null),
+        takeUntil(this.destroy$),
       )
       .subscribe((state) => {
-        console.log('MapGridComponent: Received nested outlet update request', state);
+        console.log(
+          'MapGridComponent: Received nested outlet update request',
+          state,
+        );
         this.updateNestedOutlets(state!);
       });
 
@@ -62,15 +68,17 @@ export class MapGridComponent implements OnInit, OnDestroy {
    * This prevents sidebar from being affected and avoids full URL rebuild
    */
   private updateNestedOutlets(state: MapGridState) {
-    const routesParam = state.selectedRoutes.length > 0 
-      ? state.selectedRoutes.join(',') 
-      : '';
+    const routesParam =
+      state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
 
-    console.log('MapGridComponent: Updating nested outlets with relative navigation', {
-      dayOfWeek: state.dayOfWeek,
-      routes: routesParam,
-      mapId: state.mapId
-    });
+    console.log(
+      'MapGridComponent: Updating nested outlets with relative navigation',
+      {
+        dayOfWeek: state.dayOfWeek,
+        routes: routesParam,
+        mapId: state.mapId,
+      },
+    );
 
     // Determine grid path based on available data
     let gridPath: string[];
@@ -83,16 +91,19 @@ export class MapGridComponent implements OnInit, OnDestroy {
     }
 
     // ✅ KEY: Use RELATIVE navigation - only specify nested outlets
-    this.router.navigate([
+    this.router.navigate(
+      [
+        {
+          outlets: {
+            grid: gridPath,
+            map: ['map', state.mapId],
+          },
+        },
+      ],
       {
-        outlets: {
-          grid: gridPath,
-          map: ['map', state.mapId]
-        }
-      }
-    ], { 
-      relativeTo: this.route  // Navigate relative to mapgrid route
-    });
+        relativeTo: this.route, // Navigate relative to mapgrid route
+      },
+    );
   }
 
   ngOnDestroy(): void {
