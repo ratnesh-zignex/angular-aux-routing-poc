@@ -36,6 +36,7 @@
       [autoGenerateColumns]="false"
       [columnGroups]="columns"
       selectionMode="ListBox"
+      (initialized)="onGridInitialized($event)"
       style="height: 100%; width: 100%"
     >
     </wj-flex-grid>

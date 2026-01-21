@@ -1,1 +1,11 @@
-<div id="olmap" style="width:100%;" [style.height]="popoutService.isGridPoppedOut() ? '100vh' : '80vh'"></div>
+<div class="map-container">
+  <div
+    id="olmap"
+    style="width: 100%"
+    [style.height]="popoutService.isGridPoppedOut() ? '100vh' : '80vh'"
+  ></div>
+  <app-map-toolbar
+    (toolActivated)="onToolActivated($event)"
+    (toolDeactivated)="onToolDeactivated($event)"
+  ></app-map-toolbar>
+</div>

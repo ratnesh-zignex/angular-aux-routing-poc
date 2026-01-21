@@ -591,3 +591,26 @@ dt {
   left: 97.5%;
   cursor: pointer;
 }
+
+// OpenLayers DragBox Selection Rectangle Styling
+.ol-box {
+  box-sizing: border-box;
+  border-radius: 2px;
+  border: 2px dashed #4caf50;
+  background-color: rgba(76, 175, 80, 0.15);
+}
+
+.ol-dragbox {
+  background-color: rgba(0, 128, 0, 0.2);
+  border: 2px dashed #008000;
+}
+
+/* Global Layout Fixes */
+html, body, app-root, app-main, app-daily-planner, app-popout-grid, .app-container {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* App manages its own scrolling */
+  display: block;   /* Ensure custom elements are blocks */
+}

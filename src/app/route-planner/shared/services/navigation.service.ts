@@ -12,6 +12,7 @@ import {
 import {
   IZBaseDataType,
   IZDailyCustomerDataType,
+  IZMapSelectionData,
   IZRouteDataDOW,
 } from '../interfaces/interfaces';
 import { HttpService } from './http.service';
@@ -98,6 +99,8 @@ export class NavigationService {
   selectedRoutes: string[] = [];
   primaryRoute: string = '/rp';
   mapEventSubject: Subject<any> = new Subject<any>(); // For map events
+  mapSelectionSubject: Subject<IZMapSelectionData> = new Subject<IZMapSelectionData>(); // For rectangle selection events
+  gridSelectionSubject: Subject<string[]> = new Subject<string[]>(); // ✅ NEW: Broadcast grid selection to map
   appCode: string = '';
   operationUnitList: IZOpsUnitData[] = [];
   routeTypeList: IZRouteTypeResponse[] = [];

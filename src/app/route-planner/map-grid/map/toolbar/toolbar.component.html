@@ -1,0 +1,11 @@
+<div class="map-toolbar">
+  <button
+    *ngFor="let button of buttons"
+    class="toolbar-button"
+    [class.active]="isButtonActive(button)"
+    [title]="button.tooltip"
+    (click)="onButtonClick(button)"
+  >
+    <span class="button-icon">{{ button.icon }}</span>
+  </button>
+</div>

@@ -155,6 +155,17 @@ export class GridPopoutService implements OnDestroy {
               false,
               message.payload.state,
             );
+
+            // ✅ Synthesize SYNC_SELECTION if present, so Planner listening to bridge gets it
+            if (message.payload.selectedCids) {
+                setTimeout(() => {
+                    this._bridgeMessages.next({
+                        type: 'EVENT',
+                        action: 'SYNC_SELECTION',
+                        payload: { cids: message.payload.selectedCids }
+                    });
+                }, 100); // Small delay to ensure grid data is bound
+            }
           }
           break;
 

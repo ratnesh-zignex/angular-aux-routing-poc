@@ -32,19 +32,22 @@ import { features } from 'process';
 import { GridPopoutService } from '../../shared/services/grid-popout.service';
 import { Subscription } from 'rxjs';
 import Select from 'ol/interaction/Select';
+import DragBox from 'ol/interaction/DragBox';
+import { always } from 'ol/events/condition';
 import Modify from 'ol/interaction/Modify';
 import { MapEvent } from '../../shared/interfaces/map-interfaces';
-import { Geometry } from 'ol/geom';
+import { Geometry, Polygon } from 'ol/geom';
 import Stroke from 'ol/style/Stroke';
 import { click } from 'ol/events/condition';
 import { customer } from '../../../protos/customer/customer';
 import { buffer } from 'ol/extent';
-import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
+import { IZDailyCustomerDataType, IZMapSelectionData, IZToolType } from '../../shared/interfaces/interfaces';
+import { MapToolbarComponent } from './toolbar/toolbar.component';
 
 @Component({
   selector: 'app-map',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MapToolbarComponent],
   templateUrl: './map.component.html',
   styleUrl: './map.component.scss',
 })
@@ -58,8 +61,13 @@ export class MapComponent implements AfterViewInit, OnInit {
   private vectorSource!: VectorSource;
   private selectInteraction!: Select;
   private modifyInteraction!: Modify;
+  private dragBoxInteraction!: DragBox;
+  private selectionSource!: VectorSource;
+  private selectionLayer!: VectorLayer;
   isDragModeEnabled = false;
   isColorToolEnabled = false;
+  isBoxSelectionEnabled = false;
+  selectedIndices: Set<number> = new Set(); // Track selected feature indices
 
   unsavedChanges = false;
   labelField: string = 'cid'; // Default label field
@@ -119,6 +127,35 @@ export class MapComponent implements AfterViewInit, OnInit {
           // Update map points based on the grid's data
           this.points = points.points;
           this.updateMapFeatures();
+        }
+      })
+    );
+
+    // ✅ Map <- Grid Sync: Listen for grid CIDs
+    this.subscriptions.add(
+      this.navBar.gridSelectionSubject.subscribe((cids: string[]) => {
+        console.log('Map: Received grid selection CIDs:', cids?.length);
+        
+        // 1. Clear current map selection (visual)
+        this.selectInteraction.getFeatures().clear();
+        if (this.selectionSource) this.selectionSource.clear();
+
+        if (cids && cids.length > 0) {
+           const featuresToSelect: Feature<Geometry>[] = [];
+           const cidSet = new Set(cids);
+
+           // 2. Find matching features
+           if (this.vectorSource) {
+             this.vectorSource.getFeatures().forEach(feature => {
+               const cid = feature.get('cid');
+               if (cidSet.has(cid)) {
+                 featuresToSelect.push(feature);
+               }
+             });
+           }
+
+           // 3. Highlight them
+           featuresToSelect.forEach(f => this.selectInteraction.getFeatures().push(f));
         }
       })
     );
@@ -185,9 +222,30 @@ export class MapComponent implements AfterViewInit, OnInit {
       source: this.vectorSource,
       style: (feature) => this.getFeatureStyle(feature as Feature<Geometry>),
     });
+
+    // Initialize selection layer for persistent box
+    this.selectionSource = new VectorSource();
+    this.selectionLayer = new VectorLayer({
+      source: this.selectionSource,
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(0, 0, 255, 0.1)',
+        }),
+        stroke: new Stroke({
+          color: '#0055ff',
+          width: 2,
+        }),
+      }),
+      zIndex: 100 
+    });
+
     this.map = new Map({
       target: this.el.nativeElement.querySelector('#olmap'),
-      layers: [new TileLayer({ source: new OSM() }), this.vectorLayer],
+      layers: [
+        new TileLayer({ source: new OSM() }), 
+        this.vectorLayer,
+        this.selectionLayer // Add selection layer
+      ],
       view: new View({
         center: fromLonLat([-74.006, 40.7128]),
         zoom: 12,
@@ -245,16 +303,20 @@ export class MapComponent implements AfterViewInit, OnInit {
 
   getFeatureStyle(feature: Feature<Geometry>): Style {
     const route = feature.get('route');
-    const color = feature.get('color') || this.getColorForRoute(route);
-    // const color = feature.get('color') || 'red';
-    const cid = feature.get('cid');
+    const data = feature.get('data');
+    const isSelected = data && this.selectedIndices.has(data.index);
+    
+    // Use gray color for selected features, original color for unselected
+    const color = isSelected ? '#808080' : (feature.get('color') || this.getColorForRoute(route));
+    const radius = isSelected ? 9 : 7; // Slightly larger for selected
+    
     return new Style({
       image: new CircleStyle({
-        radius: 7,
+        radius: radius,
         fill: new Fill({ color: color }),
         stroke: new Stroke({
-          color: 'white',
-          width: 1,
+          color: isSelected ? '#333' : 'white',
+          width: isSelected ? 2 : 1,
         }),
       }),
       text: new Text({
@@ -407,5 +469,149 @@ export class MapComponent implements AfterViewInit, OnInit {
   setLabelField(field: string) {
       this.labelField = field;
       this.updateMapFeatures();
+  }
+
+  // Rectangle Selection Tool Methods
+  onToolActivated(toolType: IZToolType): void {
+    console.log('Tool activated:', toolType);
+    switch (toolType) {
+      case IZToolType.BoxSelection:
+        this.enableDragBox();
+        break;
+      case IZToolType.Eraser:
+        this.clearSelection();
+        break;
+    }
+  }
+
+  onToolDeactivated(toolType: IZToolType): void {
+    console.log('Tool deactivated:', toolType);
+    switch (toolType) {
+      case IZToolType.BoxSelection:
+        this.disableDragBox();
+        break;
+    }
+  }
+
+  setupDragBoxInteraction(): void {
+    this.dragBoxInteraction = new DragBox({
+      condition: always, // Always allow drag (no modifier key needed)
+    });
+
+    this.dragBoxInteraction.on('boxend', () => {
+      const geometry = this.dragBoxInteraction.getGeometry();
+      const extent = geometry.getExtent();
+      const newSelectedIndices: number[] = [];
+      const newSelectedCids: string[] = [];
+
+      // Find all features within the drawn rectangle
+      this.vectorSource.forEachFeatureIntersectingExtent(extent, (feature) => {
+        const data = feature.get('data');
+        if (data) {
+          if (data.index !== undefined) {
+            newSelectedIndices.push(data.index);
+          }
+          if (data.cid) {
+            newSelectedCids.push(data.cid);
+          }
+        }
+      });
+
+      console.log('Box selection completed. Selected indices:', newSelectedIndices, 'CIDs:', newSelectedCids);
+      
+      // Persist visual selection box
+      if (this.selectionSource) {
+         this.selectionSource.clear(); // Clear any previous box
+         const selectionFeature = new Feature({
+            geometry: geometry
+         });
+         this.selectionSource.addFeature(selectionFeature);
+      }
+
+      // Store selected indices and refresh map to show highlighting
+      this.selectedIndices = new Set(newSelectedIndices);
+      this.vectorLayer.changed(); // Trigger re-render to show selection styles
+
+      // Emit selection event to grid components
+      const selectionData: IZMapSelectionData = {
+        toolType: IZToolType.BoxSelection,
+        data: {
+          selectedIndices: newSelectedIndices,
+          selectedCids: newSelectedCids,
+          allIndices: this.points.map((p) => p.index),
+        },
+      };
+
+      this.navBar.mapSelectionSubject.next(selectionData);
+
+      // ✅ Map -> Popout Sync: Broadcast selection
+      if (this.popoutService && this.popoutService.isGridPoppedOut()) {
+        this.popoutService.broadcastEvent('SYNC_SELECTION', {
+           cids: newSelectedCids
+        });
+      }
+    });
+  }
+
+  enableDragBox(): void {
+    if (!this.dragBoxInteraction) {
+      this.setupDragBoxInteraction();
+    }
+    this.isBoxSelectionEnabled = true;
+    this.map.addInteraction(this.dragBoxInteraction);
+    
+    // Disable other interactions while box selection is active
+    this.map.removeInteraction(this.selectInteraction);
+    this.map.removeInteraction(this.modifyInteraction);
+    
+    console.log('DragBox interaction enabled');
+  }
+
+  disableDragBox(): void {
+    this.isBoxSelectionEnabled = false;
+    if (this.dragBoxInteraction) {
+      this.map.removeInteraction(this.dragBoxInteraction);
+    }
+    
+    // Re-enable other interactions
+    this.map.addInteraction(this.selectInteraction);
+    this.map.addInteraction(this.modifyInteraction);
+    
+    console.log('DragBox interaction disabled');
+  }
+
+  clearSelection(): void {
+    // Clear selected indices and refresh map
+    this.selectedIndices.clear();
+    
+    // Clear the persistent selection box
+    if (this.selectionSource) {
+      this.selectionSource.clear();
+    }
+    
+    // ✅ CRITICAL: Clear interactions selection (blue highlight)
+    if (this.selectInteraction) {
+      this.selectInteraction.getFeatures().clear();
+    }
+    
+    if (this.vectorLayer) {
+      this.vectorLayer.changed();
+    }
+    
+    // Emit empty selection to clear grid highlighting
+    const selectionData: IZMapSelectionData = {
+      toolType: IZToolType.Eraser,
+      data: {
+        selectedIndices: [],
+      },
+    };
+    this.navBar.mapSelectionSubject.next(selectionData);
+    
+    // Map -> Popout Sync: Clear popout selection too
+    if (this.popoutService && this.popoutService.isGridPoppedOut()) {
+         this.popoutService.broadcastEvent('SYNC_SELECTION', { cids: [] });
+    }
+
+    console.log('Selection cleared');
   }
 }

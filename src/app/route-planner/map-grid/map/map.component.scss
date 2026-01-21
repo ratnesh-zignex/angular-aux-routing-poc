@@ -1,0 +1,18 @@
+.map-container {
+  position: relative;
+  width: 100%;
+}
+
+// DragBox selection rectangle styling
+:host ::ng-deep .ol-dragbox {
+  background-color: rgba(0, 128, 0, 0.2); // Semi-transparent green fill
+  border: 2px dashed #008000; // Green dashed border
+}
+
+// Alternative: If the above doesn't work, add global styles
+::ng-deep .ol-box {
+  box-sizing: border-box;
+  border-radius: 2px;
+  border: 2px dashed #4caf50;
+  background-color: rgba(76, 175, 80, 0.15);
+}

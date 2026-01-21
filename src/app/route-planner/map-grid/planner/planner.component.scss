@@ -1,3 +1,9 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
+
 .planner-container {
   display: flex;
   flex-direction: column;
@@ -40,6 +46,30 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* Grid Wrapper to handle layout */
+.grid-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent wrapper scroll */
+  min-height: 0;    /* Important for flex child scrolling */
+  position: relative;
+  
+  &.popout-grid {
+    height: 100vh; /* Force full height in popout */
+  }
+
+  &.main-grid {
+    height: 100%;
+  }
+
+  /* Ensure wijmo grid takes full space */
+  ::ng-deep .wj-flexgrid {
+    height: 100% !important;
+    border: none;
+  }
 }
 
 .toolbar-buttons {
@@ -218,7 +248,7 @@
 
 .grid-wrapper {
   flex: 1;
-  overflow: auto; 
+  overflow: hidden; 
   padding: 10px;
   min-height: 0;
   height: 100%;
@@ -276,6 +306,17 @@
   /* Popout window */
   .popout-grid .wj-flexgrid {
     height: calc(100vh - 25vh) !important;
+  }
+
+  /* Custom Selection Highlight */
+  .selected-row-highlight {
+    background-color: #867f7f !important;
+    color: #fff !important;
+    
+    /* Ensure links or other elements inside also inherit color */
+    * {
+      color: #fff !important;
+    }
   }
 }
 

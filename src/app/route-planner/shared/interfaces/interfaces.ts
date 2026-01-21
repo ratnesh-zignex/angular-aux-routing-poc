@@ -35,3 +35,19 @@ export interface PopupState {
   data?: any; // Data to pass to the popup component
   isOpen?: boolean; // Indicates if popup is open
 }
+
+// Rectangle Selection Types
+export enum IZToolType {
+  BoxSelection = 'boxSelection',
+  PolygonSelection = 'polygonSelection',
+  Eraser = 'eraser',
+}
+
+export interface IZMapSelectionData {
+  toolType: IZToolType | string;
+  data: {
+    selectedIndices: number[];
+    selectedCids?: string[]; // Add robust ID-based selection
+    allIndices?: number[];
+  };
+}

@@ -20,9 +20,13 @@ import {
   takeUntil,
   lastValueFrom,
 } from 'rxjs';
-import { FlexGrid } from '@grapecity/wijmo.grid';
-import { GridPopoutService } from '../../shared/services/grid-popout.service';
-import { IZDailyCustomerDataType } from '../../shared/interfaces/interfaces';
+import { FlexGrid, CellRange, FormatItemEventArgs } from '@grapecity/wijmo.grid';
+import { CollectionView, SortDescription } from '@grapecity/wijmo';
+import {
+  GridPopoutService,
+  BridgeMessage,
+} from '../../shared/services/grid-popout.service';
+import { IZDailyCustomerDataType, IZMapSelectionData, IZToolType } from '../../shared/interfaces/interfaces';
 import { state } from '@angular/animations';
 import {
   IZWijmoGridBtn,
@@ -44,6 +48,8 @@ import { MapService } from '../../shared/services/map.service';
 })
 export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   gridData: IZDailyCustomerDataType[] = [];
+  selectedRowIndices: Set<number> = new Set(); // Track selected data indices for highlighting
+  selectedCids: Set<string> = new Set(); // Track selected CIDs for robust highlighting
   // Grid toolbar buttons
   mainGridBtnList: IZWijmoGridBtn[] = gridBtnList;
   popoutGridBtnList: IZWijmoGridBtn[] = popoutGridBtnList;
@@ -107,7 +113,27 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   routes: string[] = [];
   isNavigating: boolean = false;
   destroy$ = new Subject<void>();
-  @ViewChild('flexGrid') flexGrid!: FlexGrid; // Reference to the Wijmo grid instance
+  private _flexGrid!: FlexGrid;
+  private handlersRegistered = false;
+  private isProgrammaticSelection = false;
+
+  @ViewChild('flexGrid') set flexGrid(grid: FlexGrid) {
+    if (grid && grid !== this._flexGrid) {
+      this._flexGrid = grid;
+      this.handlersRegistered = false; // Reset flag for new grid instance
+      
+      // Also trigger initialization logic if needed
+      if (!this.selectedRowIndices) {
+        this.selectedRowIndices = new Set();
+      }
+      // Explicitly register handlers now that we have the grid
+      // setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => this.onGridInitialized(grid), 0);
+    }
+  }
+  get flexGrid(): FlexGrid {
+    return this._flexGrid;
+  }
   isBrowser: boolean = false;
   @Input() isPopoutMode: boolean = false; // Detect if running in popout mode
   private broadcastChannel: BroadcastChannel | null = null; // For popout communication
@@ -158,10 +184,11 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         this.popoutService
           .listenForEvent('SYNC_SELECTION')
           .pipe(takeUntil(this.destroy$))
-          .subscribe((msg) => {
+          .subscribe((msg: BridgeMessage) => {
             console.log('Planner (Popout): Received SYNC_SELECTION:', msg);
-            if (msg.payload && msg.payload.cid) {
-              this.selectRowByCid(msg.payload.cid);
+            if (msg.payload) {
+               // ✅ Map -> Grid Sync: Select and Sort to Top
+               this.selectRowByCid(msg.payload.cids || [msg.payload.cid], true);
             } else {
               console.warn('Planner: Invalid payload for SYNC_SELECTION', msg);
             }
@@ -260,6 +287,16 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
           .subscribe((params) => {
             this.routes = params['routes'] ? params['routes'].split(',') : [];
             this.dayOfWeek = params['dayOfWeek'];
+            
+            // Update service state FIRST so getLoadedData uses correct routes
+            this.navService.selectedRoutes = this.routes;
+            this.navService.selectedDayOfWeek = this.dayOfWeek;
+            
+            // Reload data on browser back/forward if routes exist
+            if (this.routes.length > 0) {
+              this.navService.getLoadedData();
+            }
+            
             this.updateGridDataAndMap();
             console.log(
               'Planner: Route params changed: Navigating to Map Grid state',
@@ -281,17 +318,131 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             console.log('PopoutGrid: Received initialization data:', points);
             console.log('PopoutGrid: Points length:', points?.length);
             this.updateGridDataFromMapPoints(points, true);
-            console.log('PopoutGrid: gridData after update:', this.gridData);
-            // // Update navigation service with the received data
-            // this.navService.mapEventSubject.next({ points });
           });
       }
+      
+      // Subscribe to map selection events (rectangle selection)
+      this.navService.mapSelectionSubject
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((selectionData: IZMapSelectionData) => {
+          console.log('Planner: Received map selection event:', selectionData);
+          this.handleMapSelection(selectionData);
+        });
     }
   }
   ngAfterViewInit() {
-    if (this.isBrowser && this.flexGrid && this.flexGrid.cellEditEnded) {
+    if (this.isBrowser && this.flexGrid) {
       // Set up cell edit handler
-      this.flexGrid.cellEditEnded.addHandler((s, e) => {
+      if (this.flexGrid.cellEditEnded) {
+        this.flexGrid.cellEditEnded.addHandler((s, e) => {
+          const item = s.rows[e.row].dataItem;
+          if (
+            e.col === this.flexGrid.columns.getColumn('lat')?.index ||
+            e.col === this.flexGrid.columns.getColumn('lon')?.index
+          ) {
+            item.lat = parseFloat(item.lat);
+            item.lon = parseFloat(item.lon);
+            
+            if (!isNaN(item.lat) && !isNaN(item.lon)) {
+               console.log('Grid cell edited:', item);
+               this.updateMapWithGridChanges();
+            }
+          }
+        });
+      }
+      
+      // ✅ Grid -> Map Sync: Listen to user selecting rows
+      this.flexGrid.selectionChanged.addHandler((s: FlexGrid, e: any) => {
+        // Guard: Ignore programmatic selections (e.g. from Map or Sorting)
+        if (this.isProgrammaticSelection) return;
+        
+        // 1. Get selected items
+        const selectedItems = s.selectedItems as IZDailyCustomerDataType[];
+        
+        // 2. Extract CIDs
+        const selectedCids = selectedItems
+          .filter(item => item && item.cid)
+          .map(item => item.cid as string);
+          
+        console.log(`Planner: Grid selection changed (User Action). CIDs: ${selectedCids.length}`);
+        
+        // 3. Broadcast to Map (via NavigationService for Local Map)
+        this.navService.gridSelectionSubject.next(selectedCids);
+        
+        // 4. Update local state (so highlights stick)
+        this.selectedCids = new Set(selectedCids);
+        
+        // 5. Broadcast to Popout/Parent (if needed)
+        // If we are in Popout, tell Main Window
+        if (this.isPopoutMode) {
+           this.popoutService.sendMessage({
+             type: 'EVENT',
+             action: 'SYNC_SELECTION', // We reuse this action
+             payload: { cids: selectedCids } // Array payload
+           });
+        }
+      });
+      
+      // Set up formatItem handler for selection highlighting
+      this.flexGrid.formatItem.addHandler((s: FlexGrid, e: FormatItemEventArgs) => {
+        if (e.panel === s.cells) {
+          const rowData = s.rows[e.row]?.dataItem as IZDailyCustomerDataType;
+          if (rowData && this.selectedRowIndices.has(rowData.index)) {
+            // Apply selected style to all cells in this row
+            e.cell.style.backgroundColor = '#867f7f';
+            e.cell.style.color = '#fff';
+          } else {
+            // Reset style for non-selected rows
+            e.cell.style.backgroundColor = '';
+            e.cell.style.color = '';
+          }
+        }
+      });
+      
+      console.log('Planner: formatItem handler registered');
+    }
+  }
+
+
+
+  // Called when FlexGrid is initialized (handles dynamic *ngIf rendering)
+  onGridInitialized(grid: FlexGrid): void {
+    if (!grid) {
+      return; 
+    }
+    
+    // Check if handlers are already registered for this instance
+    if (this.handlersRegistered && this._flexGrid === grid) {
+      return;
+    }
+    
+    console.log('Planner: FlexGrid initialized', grid);
+    this._flexGrid = grid;
+    
+    // Set up formatItem handler for selection highlighting
+    grid.formatItem.addHandler((s: FlexGrid, e: FormatItemEventArgs) => {
+      if (e.panel === s.cells) {
+        const rowData = s.rows[e.row]?.dataItem as IZDailyCustomerDataType;
+        if (rowData) {
+          // ⚠️ EXPERIMENTAL: Using index-based selection (will break on sort!)
+          const isSelected = this.selectedRowIndices.has(rowData.index);
+          
+          // Use classList for styling which is more reliable than inline styles
+          if (isSelected) {
+            e.cell.classList.add('selected-row-highlight');
+          } else {
+             e.cell.classList.remove('selected-row-highlight');
+             // Also ensure inline styles are cleared if they were set previously
+             e.cell.style.backgroundColor = '';
+             e.cell.style.color = '';
+          }
+        }
+      }
+    });
+    
+    // Set up cell edit handler
+    if (grid.cellEditEnded) {
+      grid.cellEditEnded.addHandler((s, e) => {
         const item = s.rows[e.row].dataItem;
         if (
           e.col === this.flexGrid.columns.getColumn('lat')?.index ||
@@ -306,7 +457,100 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         }
       });
     }
+    
+    // Handle user selection changes (Grid -> Map/Logic sync)
+    grid.selectionChanged.addHandler((s: FlexGrid, e: any) => {
+      if (this.isProgrammaticSelection) return;
+
+      const selectedItems = s.selectedItems;
+      this.selectedCids.clear();
+      this.selectedRowIndices.clear();
+
+      selectedItems.forEach((item: any) => {
+        if (item.cid) this.selectedCids.add(item.cid);
+        if (item.index !== undefined) this.selectedRowIndices.add(item.index);
+      });
+
+      // User request: Do NOT move to top when selecting from grid logic
+      // this.applySelectionSort(); 
+
+      console.log(`Planner: Grid selection changed (onGridInitialized). CIDs: ${this.selectedCids.size}`);
+      
+      // ✅ BROADCAST to Map
+      this.navService.gridSelectionSubject.next(Array.from(this.selectedCids));
+
+      // If we are in Popout, tell Main Window
+      if (this.isPopoutMode) {
+          this.popoutService.sendMessage({
+            type: 'EVENT',
+            action: 'SYNC_SELECTION',
+            payload: { cids: Array.from(this.selectedCids) }
+          });
+      }
+    });
+
+    this.handlersRegistered = true;
+    console.log('Planner: Grid handlers registered via initialized event');
   }
+
+  // Refactored sort logic to be reusable
+  applySelectionSort() {
+    if (this.flexGrid && this.flexGrid.collectionView) {
+       // Guard against recursive updates triggering selectionChanged
+       const wasProgrammatic = this.isProgrammaticSelection;
+       this.isProgrammaticSelection = true;
+       
+       try {
+         const cv = this.flexGrid.collectionView as CollectionView;
+         const items = cv.sourceCollection as any[];
+         if (items) {
+           items.forEach(item => {
+              let isSelected = false;
+              // Prefer CID matching if available
+              if (this.selectedCids && this.selectedCids.size > 0 && item.cid) {
+                 isSelected = this.selectedCids.has(item.cid);
+              } else {
+                 isSelected = this.selectedRowIndices.has(item.index);
+              }
+              item._isSelected = isSelected ? 1 : 0;
+           });
+         }
+  
+         const existingSort = cv.sortDescriptions.find((sd: SortDescription) => sd.property === '_isSelected');
+         if (!existingSort) {
+            cv.sortDescriptions.insert(0, new SortDescription('_isSelected', false));
+         } else {
+            cv.sortDescriptions.remove(existingSort);
+            cv.sortDescriptions.insert(0, new SortDescription('_isSelected', false));
+         }
+         cv.refresh();
+         this.flexGrid.refresh(true);
+
+         // 🔄 REBUILD STRATEGY: Recalculate indices after sort
+         // This fixes the "Ghost Selection" bug by updating the index map
+         const newSelectedIndices = new Set<number>();
+         
+         // Iterate through the NOW SORTED items
+         cv.items.forEach((item: any) => {
+             // Check if this item is essentially selected (using our transient flag)
+             if (item._isSelected === 1) {
+                 // Add its NEW index to the set
+                 newSelectedIndices.add(item.index); 
+             }
+         });
+         
+         // Replace the old index set with the corrected one
+         this.selectedRowIndices = newSelectedIndices;
+         
+         // Refresh grid one last time to apply highlights to correct indices
+         this.flexGrid.invalidate();
+       } finally {
+         // Restore original state (or set to false if it wasn't already true)
+         this.isProgrammaticSelection = wasProgrammatic;
+       }
+    }
+  }
+
 
   updateGridDataAndMap() {
     if (this.routes.length) {
@@ -323,16 +567,26 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     mapPoints: any[],
     initializedPopoutData: Boolean = false,
   ) {
-    console.log('updateGridDataFromMapPoints called with:', mapPoints);
-    if (mapPoints.length === 0) {
+    console.log('updateGridDataFromMapPoints called with:', mapPoints?.length, 'points, initializedPopoutData:', initializedPopoutData);
+    if (!mapPoints || mapPoints.length === 0) {
       this.gridData = [];
-    } else if (initializedPopoutData) {
+    } else if (initializedPopoutData || this.gridData.length === 0) {
+      // Initial load or popout initialization - replace entire grid data
       this.gridData = [...mapPoints];
       this.popoutService.popoutGridData = this.gridData;
+
+      // Use setTimeout to ensure grid is updated before we clear selection
+      // This prevents the default behavior of selecting the first row
+      setTimeout(() => {
+        if (this.flexGrid) {
+           this.flexGrid.select(new CellRange(-1, -1));
+        }
+      });
+      console.log('Grid data initialized with', this.gridData.length, 'rows');
     } else {
-      console.log('flex grid', this.flexGrid);
+      // Update existing data (for coordinate updates, etc.)
+      // Update existing data (for coordinate updates, etc.)
       const updatedPointsMap = new Map(mapPoints.map((p) => [p.cid, p]));
-      console.log('Updated points map:', updatedPointsMap);
       this.gridData = this.gridData.map((row) => {
         const updatedPoint = updatedPointsMap.get(row.cid);
         if (updatedPoint) {
@@ -347,15 +601,15 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       });
       console.log('Updated grid data:', this.gridData);
       this.popoutService.popoutGridData = this.gridData;
-      // Refresh Wijmo grid after data update
-      if (
-        this.isBrowser &&
-        this.flexGrid &&
-        typeof this.flexGrid.refresh === 'function'
-      ) {
-        console.log('Refreshing grid...');
-        this.flexGrid.refresh();
-      }
+    }
+    // Refresh Wijmo grid after data update
+    if (
+      this.isBrowser &&
+      this.flexGrid &&
+      typeof this.flexGrid.refresh === 'function'
+    ) {
+      console.log('Refreshing grid...');
+      this.flexGrid.refresh();
     }
   }
 
@@ -522,6 +776,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
               selectedRouteType: navSidebarState.routeType,
               colors: [], // Will be updated via subscription shortly
             },
+            selectedCids: Array.from(this.selectedCids) // ✅ Pass current selection state
           },
         });
 
@@ -657,23 +912,75 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   /**
    * Programmatically select a row by Customer ID (cid)
    */
-  selectRowByCid(cid: string): void {
+  selectRowByCid(cids: string | string[], sortToTop: boolean = false): void {
     if (!this.flexGrid) {
       console.warn('Planner: FlexGrid not ready for selection.');
       return;
     }
 
+    const cidList = Array.isArray(cids) ? cids : [cids];
+    const cidSet = new Set(cidList);
+
     console.log(
-      `Planner: Attempting to select row for CID=${cid} among ${this.flexGrid.rows.length} rows`,
+      `Planner: Attempting to select ${cidList.length} rows by CIDs`,
     );
-    // Iterate over rows to find the matching customer
-    for (const row of this.flexGrid.rows) {
-      if (row.dataItem && row.dataItem.cid === cid) {
-        console.log('Planner: Found matching row at index:', row.index);
-        row.isSelected = true;
-        this.flexGrid.scrollIntoView(row.index, 0); // Scroll to the selected row
-        break;
+
+    // Prevent recursive loop if this triggers selectionChanged
+    const wasProgrammatic = this.isProgrammaticSelection;
+    this.isProgrammaticSelection = true;
+
+    try {
+      let firstSelectedIndex = -1;
+      
+      
+      // Update our internal tracking sets first
+      this.selectedCids = new Set(cidList);
+      this.selectedRowIndices.clear();
+
+      // ✅ Sort to Top if requested
+      if (sortToTop) {
+          this.applySelectionSort();
       }
+
+      for (const row of this.flexGrid.rows) {
+        if (row.dataItem && row.dataItem.cid && cidSet.has(row.dataItem.cid)) {
+          row.isSelected = true;
+          this.selectedRowIndices.add(row.dataItem.index);
+          if (firstSelectedIndex === -1) {
+             firstSelectedIndex = row.index;
+          }
+        } else {
+           // Optional: clear other selections if we want exact sync
+           // row.isSelected = false; 
+        }
+      }
+
+      if (firstSelectedIndex !== -1) {
+        // ✅ Delay scroll to ensure grid layout is ready
+        setTimeout(() => {
+           // Scroll to make it visible first
+           this.flexGrid.scrollIntoView(firstSelectedIndex, -1);
+           
+           // ✅ Force to Top Logic:
+           // Calculate exact scroll position to put this row at the top
+           // (Approximation: row index * row height)
+           // But just scrollIntoView is safer for now. To force top, we can check visibility.
+           // Wijmo's scrollIntoView brings it into view (top or bottom).
+           // If we want it at top, we need to manipulate scrollPosition.
+           // Simple approach: Scroll to far bottom then back to index? No.
+           // Better: Use scrollPosition if needed. 
+           // For now, let's rely on the timeout fixing the "not scrolling at all" issue first.
+        }, 100);
+      }
+      
+      // Force grid refresh to apply styles based on selectedRowIndices
+      this.flexGrid.invalidate();
+      
+    } finally {
+       // Restore flag after a delay to ensure events settle
+       setTimeout(() => {
+         this.isProgrammaticSelection = wasProgrammatic;
+       }, 50);
     }
   }
 
@@ -1034,6 +1341,82 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         alert('Edit All Failed: ' + (err.message || 'Unknown Error'));
       },
     });
+  }
+
+  // Handle rectangle selection events from the map
+  handleMapSelection(selectionData: IZMapSelectionData): void {
+    if (!this.flexGrid) {
+      console.warn('Planner: FlexGrid not initialized, cannot handle map selection');
+      return;
+    }
+
+    const selectedIndices = selectionData.data.selectedIndices;
+    const selectedCids = selectionData.data.selectedCids;
+    const toolType = selectionData.toolType;
+
+    console.log('Planner: Handling map selection', { toolType, selectedIndices, selectedCidsCount: selectedCids?.length, gridDataLength: this.gridData?.length });
+
+    if (toolType === IZToolType.Eraser || (selectedIndices.length === 0 && (!selectedCids || selectedCids.length === 0))) {
+      // Clear selection by emptying the Set
+      this.selectedRowIndices.clear();
+      if (this.selectedCids) this.selectedCids.clear();
+      
+      // Explicitly clear native Grid selection
+      this.isProgrammaticSelection = true;
+      this.flexGrid.select(new CellRange(-1, -1));
+      this.isProgrammaticSelection = false;
+      
+      // Reset sort to remove the temporary _isSelected sort
+      if (this.flexGrid.collectionView) {
+        const cv = this.flexGrid.collectionView as CollectionView;
+        // Remove the _isSelected sort description if it exists
+        const sortDesc = cv.sortDescriptions.find((sd: SortDescription) => sd.property === '_isSelected');
+        if (sortDesc) {
+           cv.sortDescriptions.remove(sortDesc);
+        }
+        cv.refresh();
+      }
+
+      this.flexGrid.refresh(true);
+      console.log('Planner: Selection cleared and sort reset');
+      return;
+    }
+
+    // Update the selectedRowIndices Set and selectedCids Set
+    this.selectedRowIndices = new Set(selectedIndices);
+    if (selectedCids) {
+      this.selectedCids = new Set(selectedCids);
+    } else {
+      if (this.selectedCids) this.selectedCids.clear();
+    }
+
+    // Sync to Native Grid Selection
+    this.isProgrammaticSelection = true;
+    // Clear current native selection first? 
+    // We want to select rows that match.
+    // In MultiRange/ListBox, we can't easily "set" selection without iterating?
+    // Actually, setting rows[i].isSelected is the way.
+    this.flexGrid.rows.forEach(row => {
+       const item = row.dataItem as any;
+       if (item) {
+         let shouldSelect = false;
+         if (this.selectedCids.size > 0 && item.cid) {
+            shouldSelect = this.selectedCids.has(item.cid);
+         } else {
+            shouldSelect = this.selectedRowIndices.has(item.index);
+         }
+         row.isSelected = shouldSelect;
+       }
+    });
+    this.isProgrammaticSelection = false;
+
+    // Apply sorting and highlighting logic
+    this.applySelectionSort();
+    
+    // Scroll to top
+    this.flexGrid.scrollIntoView(0, 0);
+
+    console.log(`Planner: Selected ${this.selectedRowIndices.size} rows, moved to top`);
   }
 
   ngOnDestroy() {

@@ -1,0 +1,37 @@
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.popout-grid-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.popout-header {
+  flex-shrink: 0;
+  /* Add any necessary padding/styling from original if needed, 
+     but structure is priority */
+}
+
+.grid-content {
+  flex: 1; /* This is key: take all remaining height */
+  display: flex;
+  flex-direction: column; /* Pass verticality down */
+  overflow: hidden;       /* specific to this container */
+  position: relative;
+  min-height: 0;          /* Flexbox scroll fix */
+}
+
+/* Ensure child app-planner takes full space */
+app-planner, app-monthly-planner {
+  flex: 1;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
