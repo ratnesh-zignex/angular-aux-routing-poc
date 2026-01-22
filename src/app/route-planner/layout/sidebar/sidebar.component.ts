@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule, NgModel, NgModelGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import {
@@ -45,12 +45,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
   operationUnit: IZOpsUnitData[] = [];
   routeType: IZRouteTypeResponse[] = [];
   dayOfWeek: string = '';
+  localSelectedDayOfWeek: string = ''; // Local property for view binding
   isNavigating = false;
   destroy$ = new Subject<void>();
   constructor(
     private route: ActivatedRoute,
     public navService: NavigationService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -62,7 +64,24 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.routeType.forEach((e) => {
       this.routeTypes.push(e.routeType);
     });
-    this.daysOfWeek = this.routeType[0]?.dow;
+    
+    // ✅ FIX: Set daysOfWeek AND selectedDayOfWeek synchronously when data is cached
+    if (this.routeType.length > 0) {
+      this.daysOfWeek = this.routeType[0]?.dow || [];
+      
+      // Get route type from current URL to set selectedDayOfWeek
+      // URL format: /rp/(sidebar:sidebar/4020/FC/MONDAY/routes...
+      const sidebarMatch = this.router.url.match(/sidebar\/([^\/]+)\/([^\/]+)\/([^\/]+)/);
+      if (sidebarMatch && sidebarMatch[3]) {
+        const urlDayOfWeek = sidebarMatch[3];
+        if (this.daysOfWeek.includes(urlDayOfWeek)) {
+          this.navService.selectedDayOfWeek = urlDayOfWeek;
+          this.localSelectedDayOfWeek = urlDayOfWeek; // Sync local property
+        }
+      }
+    }
+    
+    // Note: daysOfWeek is set in initializeSidebarProperties based on current route type
     // Subscribe to sidebar state changes
     this.navService.sidebarState$.subscribe((state) => {
       this.currentState = state;
@@ -76,10 +95,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(async (params) => {
-        console.log('SidebarComponent: Route params changed:', params);
         const operationUnit = params['operationUnit'];
         const routeType = params['routeType'];
         const dayOfWeek = params['dayOfWeek'];
+        
+        // Update local property from URL params
+        if (dayOfWeek) {
+          this.localSelectedDayOfWeek = dayOfWeek;
+        }
+
         if (
           !this.navService.operationUnitList.length &&
           !this.navService.routeTypeList.length
@@ -96,32 +120,58 @@ export class SidebarComponent implements OnInit, OnDestroy {
               routeType,
               dayOfWeek,
               plannerType: this.getPlannerTypeFromUrl(),
+              tabName: this.getTabNameFromUrl(), // ✅ FIX: Pass tabName from URL
             },
           );
           this.updateAppName();
           this.navService.selectedOperationUnit = operationUnit;
           this.navService.selectedRouteType = routeType;
           this.navService.selectedDayOfWeek = dayOfWeek;
+          this.navService.selectedDayOfWeek = dayOfWeek;
+          if (dayOfWeek) {
+            this.localSelectedDayOfWeek = dayOfWeek; // Sync local
+          }
         }
-        if (
-          this.navService.selectedOperationUnit !== operationUnit &&
-          this.navService.selectedRouteType !== routeType &&
-          this.navService.selectedDayOfWeek !== dayOfWeek
-        ) {
+        
+        const secondCondition = 
+          this.navService.selectedOperationUnit !== operationUnit ||
+          this.navService.selectedRouteType !== routeType ||
+          this.navService.selectedDayOfWeek !== dayOfWeek;
+        
+        if (secondCondition) {
           this.navService.updateSidebarState(
             {
               operationUnit,
               routeType,
               dayOfWeek,
               plannerType: this.getPlannerTypeFromUrl(),
+              tabName: this.getTabNameFromUrl(), // ✅ FIX: Pass tabName from URL
             },
-            true,
           );
+          
+          // ✅ FIX: Set daysOfWeek for cached data case
+          const matchingRouteType = this.navService.routeTypeList.find(
+            rt => rt.routeType === routeType
+          );
+
+          if (matchingRouteType && matchingRouteType.dow) {
+            this.daysOfWeek = matchingRouteType.dow;
+          }
+          
           this.navService.selectedOperationUnit = operationUnit;
           this.navService.selectedRouteType = routeType;
           this.navService.selectedDayOfWeek = dayOfWeek;
+          if (dayOfWeek) {
+            this.localSelectedDayOfWeek = dayOfWeek; // Sync local
+          }
+
           this.updateAppName();
         }
+        
+        // Force change detection to ensure UI updates, wrapped in setTimeout to avoid NG0100
+        setTimeout(() => {
+          this.cdr.detectChanges();
+        });
       });
   }
 
@@ -142,7 +192,20 @@ export class SidebarComponent implements OnInit, OnDestroy {
     if (url.includes('/mp')) return 'mp';
     if (url.includes('/sp')) return 'sp';
     return 'rp';
+    return 'rp';
   }
+  
+  private getTabNameFromUrl(): string {
+    // URL format: .../sidebar:sidebar/4020/FC/MONDAY/routes...
+    // Match the segment after dayOfWeek
+    const match = this.router.url.match(/sidebar\/[^\/]+\/[^\/]+\/[^\/]+\/([^\/\)]+)/);
+    // If we have a match, use it. If not, and we have operationUnit/routeType/dayOfWeek, 
+    // it likely means we are at the default state for that day, so default to 'routes'
+    // but only if the URL structure implies we should be deep enough.
+    // For now, if match finds nothing, return empty or default.
+    return match ? match[1] : '';
+  }
+
   async onOperationUnitChange(op: string) {
     await this.navService.getRouteType(op);
     this.routeType = this.navService.routeTypeList;
@@ -197,7 +260,16 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.routeType.forEach((e) => {
       this.routeTypes.push(e.routeType);
     });
-    this.daysOfWeek = this.routeType[0]?.dow;
+    
+    // ✅ FIX: Set daysOfWeek based on the CURRENT route type from URL params
+    const currentRouteType = this.routeType.find(rt => rt.routeType === params.routeType);
+    this.daysOfWeek = currentRouteType?.dow || this.routeType[0]?.dow || [];
+    
+    // ✅ FIX: Set selectedDayOfWeek from params so dropdown shows correct value
+    if (params.dayOfWeek && this.daysOfWeek.includes(params.dayOfWeek)) {
+      this.navService.selectedDayOfWeek = params.dayOfWeek;
+      this.localSelectedDayOfWeek = params.dayOfWeek; // Sync local
+    }
   }
   ngOnDestroy(): void {
     this.destroy$.next();
