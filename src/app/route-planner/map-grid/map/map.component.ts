@@ -10,7 +10,7 @@ import {
   PLATFORM_ID,
   SimpleChanges,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import Feature from 'ol/Feature';
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -43,6 +43,7 @@ import { customer } from '../../../protos/customer/customer';
 import { buffer } from 'ol/extent';
 import { IZDailyCustomerDataType, IZMapSelectionData, IZToolType } from '../../shared/interfaces/interfaces';
 import { MapToolbarComponent } from './toolbar/toolbar.component';
+import { UrlStateService } from '../../shared/services/url-state.service';
 
 @Component({
   selector: 'app-map',
@@ -74,8 +75,10 @@ export class MapComponent implements AfterViewInit, OnInit {
   constructor(
     private el: ElementRef,
     private route: ActivatedRoute,
+    private router: Router,
     public navBar: NavigationService,
     public popoutService: GridPopoutService,
+    private urlStateService: UrlStateService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -160,7 +163,49 @@ export class MapComponent implements AfterViewInit, OnInit {
       })
     );
   }
-  ngOnInit() {}
+  ngOnInit() {
+    // ✅ Monitor URL matrix params for selection state (handles browser back/forward)
+    let isFirstParamCheck = true;
+    
+    this.route.paramMap.subscribe((paramMap) => {
+      const boxKey = paramMap.get('boxSelection');
+      
+      // ✅ Page refresh detection: On first check, if boxKey exists but no points loaded yet,
+      // this is a page refresh - clear the param
+      if (isFirstParamCheck && boxKey && this.points.length === 0) {
+        isFirstParamCheck = false;
+        console.log('Map: Page refresh detected with boxSelection param, clearing it');
+        // Clear the selection param by navigating to clean map URL
+        this.navBar.updateMapSelectionParam(this.urlStateService.saveSelection([]));
+        return;
+      }
+      isFirstParamCheck = false;
+      
+      if (boxKey && this.points.length > 0) {
+        // Restore selection from URL (browser back/forward navigation)
+        console.log('Map: Restoring selection from key:', boxKey);
+        const selectedCids = this.urlStateService.getSelection(boxKey);
+        
+        if (selectedCids && Array.isArray(selectedCids) && selectedCids.length > 0) {
+          const cidSet = new Set(this.points.map(pt => pt.cid));
+          const validCids = selectedCids.filter(cid => cidSet.has(cid));
+          
+          if (validCids.length > 0) {
+            console.log(`Map: Restoring ${validCids.length} valid selections out of ${selectedCids.length}`);
+            this.highlightFeaturesByCids(validCids);
+          } else {
+            console.warn('Map: No valid CIDs found in current data, skipping restoration');
+          }
+        } else {
+          console.warn('Map: Invalid or empty selection data, skipping restoration');
+        }
+      } else if (!boxKey && this.points.length > 0) {
+        // ✅ boxSelection param removed (e.g., browser back) - clear visual selection
+        console.log('Map: boxSelection param removed, clearing selection');
+        this.clearSelection();
+      }
+    });
+  }
   ngAfterViewInit() {
     if (this.isBrowser) {
       this.initializeMap();
@@ -550,6 +595,12 @@ export class MapComponent implements AfterViewInit, OnInit {
            cids: newSelectedCids
         });
       }
+
+      // ✅ URL Sync: Save selection and update URL matrix param
+      if (newSelectedCids.length > 0) {
+        const key = this.urlStateService.saveSelection(newSelectedCids);
+        this.navBar.updateMapSelectionParam(key);
+      }
     });
   }
 
@@ -613,5 +664,60 @@ export class MapComponent implements AfterViewInit, OnInit {
     }
 
     console.log('Selection cleared');
+    
+    // ✅ Remove boxSelection param from URL entirely (don't create new empty key)
+    const state = this.navBar.getCurrentMapGridState();
+    const gridCommands: any[] = ['grid'];
+    if (state.dayOfWeek) {
+      gridCommands.push(state.dayOfWeek);
+      const routesParam = state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
+      if (routesParam) {
+        gridCommands.push(routesParam);
+      }
+    }
+    
+    // Navigate to URL without boxSelection parameter
+    this.router.navigate(
+      [
+        this.navBar.primaryRoute,
+        {
+          outlets: {
+            mapgrid: [
+              'mapgrid',
+              state.view,
+              {
+                outlets: {
+                  grid: gridCommands,
+                  map: ['map', state.mapId], // No matrix param = removed
+                },
+              },
+            ],
+          },
+        },
+      ]
+    );
+  }
+
+  // Helper to highlight features programmatically (used for restoring state)
+  highlightFeaturesByCids(cids: string[]) {
+     if (!this.vectorSource) return;
+
+     this.selectInteraction.getFeatures().clear();
+     const cidSet = new Set(cids);
+     const indices: number[] = [];
+
+     this.vectorSource.getFeatures().forEach(feature => {
+         const cid = feature.get('cid');
+         if (cidSet.has(cid)) {
+             this.selectInteraction.getFeatures().push(feature);
+             const data = feature.get('data');
+             if (data && data.index !== undefined) {
+                 indices.push(data.index);
+             }
+         }
+     });
+     
+     this.selectedIndices = new Set(indices);
+     this.vectorLayer.changed();
   }
 }

@@ -36,8 +36,9 @@ import {
 } from '../../shared/interfaces/grid-button.interface';
 import { PopupService } from '../../shared/services/popup.service';
 import { PopupManagerComponent } from '../../popup-manager/popup-manager.component';
-import { HttpService } from '../../shared/services/http.service';
 import { MapService } from '../../shared/services/map.service';
+import { UrlStateService } from '../../shared/services/url-state.service';
+import { HttpService } from '../../shared/services/http.service';
 
 @Component({
   selector: 'app-planner',
@@ -146,6 +147,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     private popupService: PopupService,
     private httpService: HttpService,
     private mapService: MapService,
+    private urlStateService: UrlStateService,
     @Inject(PLATFORM_ID) private platformId: Object,
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -278,6 +280,12 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             if (this.flexGrid) this.gridData = data;
           });
         // Only subscribe to route params if NOT in popout mode
+        
+        
+        // ✅ Initialize dayOfWeek from service FIRST (prevents undefined in early navigation)
+        this.dayOfWeek = this.navService.selectedDayOfWeek;
+        this.routes = this.navService.selectedRoutes;
+        
         this.route.params
           .pipe(
             distinctUntilChanged(),
@@ -292,9 +300,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             this.navService.selectedRoutes = this.routes;
             this.navService.selectedDayOfWeek = this.dayOfWeek;
             
-            // Reload data on browser back/forward if routes exist
-            if (this.routes.length > 0) {
+            // ✅ ONLY reload data if routes exist AND this is NOT a page refresh
+            // Skip auto-load on page refresh (user wants clean slate)
+            const isPageRefresh = this.gridData.length === 0 && !this.navService.initialFirstLoad;
+            if (this.routes.length > 0 && !isPageRefresh) {
+              console.log('Planner: Loading data from route params (browser navigation)');
               this.navService.getLoadedData();
+            } else if (isPageRefresh && this.routes.length > 0) {
+              console.log('Planner: Page refresh detected - skipping auto-load');
             }
             
             this.updateGridDataAndMap();
@@ -302,14 +315,45 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
               'Planner: Route params changed: Navigating to Map Grid state',
               params,
             );
-            this.navService.updateMapGridState(
-              {
-                selectedRoutes: this.routes,
-                dayOfWeek: this.dayOfWeek,
-              },
-              true,
-            );
           });
+          
+        // Listen for gridSelection URL parameter changes
+        this.route.params
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((params) => {
+             const gridKey = params['gridSelection'];
+             const routesParam = params['routes'];
+             
+             // Only restore selection if:
+             // 1. We have a key
+             // 2. We have routes loaded (not initial empty state)
+             // 3. Grid data exists
+             if (gridKey && routesParam && this.gridData.length > 0) {
+                console.log('Planner: Restoring grid selection from key:', gridKey);
+                const selectedCids = this.urlStateService.getSelection(gridKey);
+                
+                if (selectedCids && Array.isArray(selectedCids) && selectedCids.length > 0) {
+                   // Validate: Check if at least one CID exists in current grid data
+                   const cidSet = new Set(this.gridData.map(item => item.cid));
+                   const validCids = selectedCids.filter(cid => cidSet.has(cid));
+                   
+                   if (validCids.length > 0) {
+                      console.log(`Planner: Restoring ${validCids.length} valid selections out of ${selectedCids.length}`);
+                      this.selectedCids = new Set(validCids);
+                      
+                      // Apply selection if grid is ready
+                      if (this.flexGrid) {
+                         this.selectRowByCid(validCids, false);
+                      }
+                   } else {
+                      console.warn('Planner: No valid CIDs found in current data, skipping restoration');
+                   }
+                } else {
+                   console.warn('Planner: Invalid or empty selection data, skipping restoration');
+                }
+             }
+          });
+
       } else if (this.isPopoutMode) {
         console.log('PopoutGrid: In popout mode, waiting for data...');
         this.popoutService.initializeGridData$
@@ -487,6 +531,13 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             payload: { cids: Array.from(this.selectedCids) }
           });
       }
+
+      // ✅ URL Sync: Save selection and update URL matrix param
+      //    GUARD: Only update URL if we have a valid dayOfWeek to prevent malformed URLs
+      if (!this.isPopoutMode && this.dayOfWeek) {
+         const key = this.urlStateService.saveSelection(Array.from(this.selectedCids));
+         this.navService.updateGridSelectionParam(key);
+      }
     });
 
     this.handlersRegistered = true;
@@ -524,6 +575,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             cv.sortDescriptions.insert(0, new SortDescription('_isSelected', false));
          }
          cv.refresh();
+         // ✅ FIX: Finish editing before refresh
+         try {
+           if (this.flexGrid.finishEditing) {
+             this.flexGrid.finishEditing();
+           }
+         } catch (e) {
+           // Ignore if nothing to finish
+         }
          this.flexGrid.refresh(true);
 
          // 🔄 REBUILD STRATEGY: Recalculate indices after sort
@@ -585,7 +644,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       console.log('Grid data initialized with', this.gridData.length, 'rows');
     } else {
       // Update existing data (for coordinate updates, etc.)
-      // Update existing data (for coordinate updates, etc.)
       const updatedPointsMap = new Map(mapPoints.map((p) => [p.cid, p]));
       this.gridData = this.gridData.map((row) => {
         const updatedPoint = updatedPointsMap.get(row.cid);
@@ -609,6 +667,14 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       typeof this.flexGrid.refresh === 'function'
     ) {
       console.log('Refreshing grid...');
+      // ✅ FIX: Finish editing before refresh to prevent null errors
+      try {
+        if (this.flexGrid.finishEditing) {
+          this.flexGrid.finishEditing();
+        }
+      } catch (e) {
+        // Ignore errors if there's nothing to finish
+      }
       this.flexGrid.refresh();
     }
   }
@@ -643,7 +709,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     // Send to map in main window
     // Send the current grid data (which includes updated lat/lng) to the map
     this.navService.mapEventSubject.next({ points: this.gridData });
-    // If in popout mode, send to main window
     // If in popout mode, send to main window
     if (this.isPopoutMode) {
       this.popoutService.sendMessage({
@@ -694,14 +759,22 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
     const routesParam = newRoutes.length > 0 ? newRoutes.join(',') : '';
 
+    // ✅ FIX: Use navService state as fallback if this.dayOfWeek is not yet set from route params
+    const dayOfWeek = this.dayOfWeek || this.navService.getCurrentMapGridState().dayOfWeek;
+    
+    if (!dayOfWeek) {
+      console.warn('PlannerComponent: Cannot navigate - dayOfWeek is not available');
+      return;
+    }
+
     // ✅ KEY: Use RELATIVE navigation from grid's own route
     // Navigate: ../ (up to parent 'grid') / dayOfWeek / routes
-    this.router.navigate(['../', this.dayOfWeek, routesParam], {
+    this.router.navigate(['../', dayOfWeek, routesParam], {
       relativeTo: this.route, // Navigate relative to: /rp/(mapgrid:mapgrid/daily/(grid:grid/<here>))
     });
     console.log(this.route);
     console.log(
-      '🎯 URL will update to: grid/' + this.dayOfWeek + '/' + routesParam,
+      '🎯 URL will update to: grid/' + dayOfWeek + '/' + routesParam,
     );
     console.log('✅ Sidebar: NOT touched');
     console.log('✅ MapGrid: NOT touched');
@@ -1234,7 +1307,6 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   }
 
   // Handles the actual API call (or proxies it to Main Window)
-  // Handles the actual API call (or proxies it to Main Window)
   handleEditAll(payload: any, requestId?: string): void {
     // If we don't have a grid AND we don't have UIDs (from Popout), we can't do anything.
     if (!this.flexGrid && !payload.uids) {
@@ -1392,26 +1464,35 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
 
     // Sync to Native Grid Selection
     this.isProgrammaticSelection = true;
-    // Clear current native selection first? 
-    // We want to select rows that match.
-    // In MultiRange/ListBox, we can't easily "set" selection without iterating?
-    // Actually, setting rows[i].isSelected is the way.
-    this.flexGrid.rows.forEach(row => {
-       const item = row.dataItem as any;
-       if (item) {
-         let shouldSelect = false;
-         if (this.selectedCids.size > 0 && item.cid) {
-            shouldSelect = this.selectedCids.has(item.cid);
-         } else {
-            shouldSelect = this.selectedRowIndices.has(item.index);
+    try {
+      // Clear current native selection first? 
+      // We want to select rows that match.
+      // In MultiRange/ListBox, we can't easily "set" selection without iterating?
+      // Actually, setting rows[i].isSelected is the way.
+      this.flexGrid.rows.forEach(row => {
+         const item = row.dataItem as any;
+         if (item) {
+           let shouldSelect = false;
+           if (this.selectedCids.size > 0 && item.cid) {
+              shouldSelect = this.selectedCids.has(item.cid);
+           } else {
+              shouldSelect = this.selectedRowIndices.has(item.index);
+           }
+           row.isSelected = shouldSelect;
          }
-         row.isSelected = shouldSelect;
-       }
-    });
-    this.isProgrammaticSelection = false;
-
-    // Apply sorting and highlighting logic
-    this.applySelectionSort();
+      });
+      
+      // Apply sorting and highlighting logic
+      // Note: applySelectionSort() will update selectedRowIndices after sort
+      this.applySelectionSort();
+      
+    } finally {
+      this.isProgrammaticSelection = false;
+    }
+    
+    // ✅ CRITICAL: Force grid to refresh visual appearance
+    // This ensures the formatItem handler re-evaluates and applies styling
+    this.flexGrid.invalidate();
     
     // Scroll to top
     this.flexGrid.scrollIntoView(0, 0);

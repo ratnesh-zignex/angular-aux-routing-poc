@@ -130,6 +130,12 @@ export class DpComponent implements OnInit, OnDestroy {
     this.navService.updateSelectedRoutes([]);
   }
   loadData() {
+    // FIX: Sync navService state from currentState BEFORE loading data
+    // This ensures that selectedDayOfWeek and selectedRoutes are set when 
+    // loadData() tries to update the mapGridState and navigate
+    this.navService.selectedDayOfWeek = this.currentState.dayOfWeek;
+    this.navService.selectedRoutes = this.currentState.selectedRoutes;
+    
     // This will sync sidebar state to map-grid and navigate
     this.navService.loadData();
   }

@@ -345,10 +345,17 @@ export class NavigationService {
 
   async loadData() {
     await this.getLoadedData();
-    this.updateMapGridState({
-      dayOfWeek: this.selectedDayOfWeek,
-      selectedRoutes: this.selectedRoutes,
-    });
+    
+    // ✅ GUARD: Only update mapGridState if we have a valid dayOfWeek
+    // This prevents creating URLs like "grid/undefined/..."
+    if (this.selectedDayOfWeek) {
+      this.updateMapGridState({
+        dayOfWeek: this.selectedDayOfWeek,
+        selectedRoutes: this.selectedRoutes,
+      });
+    } else {
+      console.warn('NavigationService.loadData: selectedDayOfWeek not set, skipping mapGridState update');
+    }
     // this.syncStatesAndNavigate();
   }
   async navigateToDefault(plannerType: string = 'rp') {
@@ -568,5 +575,101 @@ export class NavigationService {
       return x;
     });
     return y;
+  }
+
+  /**
+   * Updates the 'map' auxiliary outlet with specific matrix parameters (e.g. boxSelection key)
+   * without affecting other route parameters or reloading the page inappropriately.
+   */
+  updateMapSelectionParam(selectionKey: string) {
+    const state = this.getCurrentMapGridState();
+    
+    // Build grid commands to preserve current grid state
+    const gridCommands: any[] = ['grid'];
+    if (state.dayOfWeek) {
+      gridCommands.push(state.dayOfWeek);
+      const routesParam = state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
+      if (routesParam) {
+        gridCommands.push(routesParam);
+      }
+    }
+    
+    // Navigate relative to the primary route to ensure we target the correct outlet structure
+    // Target: /rp/(mapgrid:mapgrid/daily/(map:map/map1;boxSelection=key))
+
+    this.router.navigate(
+      [
+        this.primaryRoute,
+        {
+          outlets: {
+            mapgrid: [
+              'mapgrid',
+              state.view,
+              {
+                outlets: {
+                  // ✅ Preserve grid outlet params
+                  grid: gridCommands,
+                  // Reconstruct map route with new matrix param
+                  // Note: { boxSelection: selectionKey } as the last element adds the matrix param
+                  map: ['map', state.mapId, { boxSelection: selectionKey }],
+                },
+              },
+            ],
+          },
+        },
+      ],
+      { relativeTo: this.route }
+    );
+  }
+
+  /**
+   * Updates the 'grid' auxiliary outlet with specific matrix parameters (e.g. gridSelection key)
+   */
+  updateGridSelectionParam(selectionKey: string) {
+    const state = this.getCurrentMapGridState();
+    
+    // ✅ GUARD: Don't update URL if dayOfWeek is not set yet
+    if (!state.dayOfWeek) {
+      console.warn('NavigationService: Cannot update grid selection - dayOfWeek not set');
+      return;
+    }
+    
+    const routesParam =
+      state.selectedRoutes.length > 0 ? state.selectedRoutes.join(',') : '';
+
+    // Construct grid command array
+    // If we have selectedRoutes, the path is grid/Monday/100,101
+    // If not, it might be grid/Monday or just grid
+    // We need to match the current URL structure exactly to avoid navigation errors
+    const gridCommands: any[] = ['grid'];
+    if (state.dayOfWeek) {
+      gridCommands.push(state.dayOfWeek);
+      if (routesParam) {
+        gridCommands.push(routesParam);
+      }
+    }
+
+    // Append the matrix param object
+    gridCommands.push({ gridSelection: selectionKey });
+
+    this.router.navigate(
+      [
+        this.primaryRoute,
+        {
+          outlets: {
+            mapgrid: [
+              'mapgrid',
+              state.view,
+              {
+                outlets: {
+                  grid: gridCommands,
+                },
+              },
+            ],
+          },
+        },
+      ],
+      { relativeTo: this.route }
+    );
   }
 }
