@@ -134,31 +134,52 @@ export class MapComponent implements AfterViewInit, OnInit {
       })
     );
 
-    // ✅ Map <- Grid Sync: Listen for grid CIDs
+    // ✅ Map <- Grid Sync: Listen for grid CIDs (MERGED from both sources)
     this.subscriptions.add(
       this.navBar.gridSelectionSubject.subscribe((cids: string[]) => {
-        console.log('Map: Received grid selection CIDs:', cids?.length);
+        console.log('🗺️ MAP RECEIVED GRID SELECTION BROADCAST');
+        console.log('  CIDs count:', cids?.length);
+        console.log('  CIDs:', cids);
         
-        // 1. Clear current map selection (visual)
+        // ✅ GUARD: Don't process if map is not initialized yet
+        if (!this.selectInteraction || !this.vectorSource) {
+          console.warn('  ❌ Map not initialized - selectInteraction:', !!this.selectInteraction, 'vectorSource:', !!this.vectorSource);
+          return;
+        }
+        
+        console.log('  ✅ Map is initialized, processing selection...');
+        
+        // ✅ Grid broadcasts MERGED selection (grid + map sources)
+        // Map should highlight ALL of them, replacing current visual state
+        console.log('  Clearing previous selection...');
         this.selectInteraction.getFeatures().clear();
-        if (this.selectionSource) this.selectionSource.clear();
-
+        
         if (cids && cids.length > 0) {
-           const featuresToSelect: Feature<Geometry>[] = [];
            const cidSet = new Set(cids);
-
-           // 2. Find matching features
-           if (this.vectorSource) {
-             this.vectorSource.getFeatures().forEach(feature => {
-               const cid = feature.get('cid');
-               if (cidSet.has(cid)) {
-                 featuresToSelect.push(feature);
-               }
-             });
-           }
-
-           // 3. Highlight them
-           featuresToSelect.forEach(f => this.selectInteraction.getFeatures().push(f));
+           console.log('  CID Set created:', cidSet.size);
+           
+           const totalFeatures = this.vectorSource.getFeatures().length;
+           console.log('  Total features on map:', totalFeatures);
+           
+           let matchCount = 0;
+           this.vectorSource.getFeatures().forEach(feature => {
+             const cid = feature.get('cid');
+             if (cidSet.has(cid)) {
+               this.selectInteraction.getFeatures().push(feature);
+               matchCount++;
+             }
+           });
+           
+           console.log(`  ✅ Matched ${matchCount} out of ${cids.length} CIDs to map features`);
+           console.log(`  Selected features count: ${this.selectInteraction.getFeatures().getLength()}`);
+           
+           // ✅ Force map to re-render to show selection highlights
+           console.log('  Forcing map re-render...');
+           this.vectorLayer.changed();
+           this.map.render();
+           console.log('  🗺️ MAP HIGHLIGHTING COMPLETE');
+        } else {
+           console.log('  No CIDs to highlight (empty selection)');
         }
       })
     );
@@ -181,8 +202,13 @@ export class MapComponent implements AfterViewInit, OnInit {
       }
       isFirstParamCheck = false;
       
+      
+      // ❌ DISABLED: URL restoration interferes with grid's merged selection broadcast  
+      // Grid broadcasts merged selection,then URL updates, then this triggers and overwrites
+      console.log('Map: URL param changed, boxKey=', boxKey, 'but restoration disabled - grid handles all sync');
+      
+      /* DISABLED - was causing highlights to disappear
       if (boxKey && this.points.length > 0) {
-        // Restore selection from URL (browser back/forward navigation)
         console.log('Map: Restoring selection from key:', boxKey);
         const selectedCids = this.urlStateService.getSelection(boxKey);
         
@@ -200,10 +226,10 @@ export class MapComponent implements AfterViewInit, OnInit {
           console.warn('Map: Invalid or empty selection data, skipping restoration');
         }
       } else if (!boxKey && this.points.length > 0) {
-        // ✅ boxSelection param removed (e.g., browser back) - clear visual selection
         console.log('Map: boxSelection param removed, clearing selection');
         this.clearSelection();
       }
+      */
     });
   }
   ngAfterViewInit() {
@@ -265,7 +291,14 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.vectorSource = new VectorSource();
     this.vectorLayer = new VectorLayer({
       source: this.vectorSource,
-      style: (feature) => this.getFeatureStyle(feature as Feature<Geometry>),
+      style: (feature) => {
+        // ✅ CRITICAL: Don't style selected features - let selectInteraction handle them
+        const selectedFeatures = this.selectInteraction?.getFeatures().getArray() || [];
+        if (selectedFeatures.includes(feature as Feature<Geometry>)) {
+          return undefined; // Let selectInteraction's custom style show through
+        }
+        return this.getFeatureStyle(feature as Feature<Geometry>);
+      },
     });
 
     // Initialize selection layer for persistent box
@@ -303,6 +336,30 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.selectInteraction = new Select({
       condition: click,
       layers: [this.vectorLayer],
+      style: (feature) => {
+        // Custom style for selected features that PRESERVES THE LABEL
+        const cid = feature.get('cid');
+        return new Style({
+          image: new CircleStyle({
+            radius: 10,
+            fill: new Fill({ color: 'rgba(0, 123, 255, 0.6)' }), // Blue highlight
+            stroke: new Stroke({
+              color: '#0056b3',
+              width: 3,
+            }),
+          }),
+          text: new Text({
+            text: cid || feature.get('route'), // Show CID or route
+            font: 'bold 13px Calibri,sans-serif',
+            fill: new Fill({ color: '#000' }),
+            stroke: new Stroke({
+              color: '#fff',
+              width: 3,
+            }),
+            offsetY: -18, // Move label above the larger circle
+          }),
+        });
+      },
     });
     this.modifyInteraction = new Modify({
       features: this.selectInteraction.getFeatures(),
@@ -549,7 +606,7 @@ export class MapComponent implements AfterViewInit, OnInit {
       const newSelectedIndices: number[] = [];
       const newSelectedCids: string[] = [];
 
-      // Find all features within the drawn rectangle
+      // ✅ Find features in box (don't merge with existing)
       this.vectorSource.forEachFeatureIntersectingExtent(extent, (feature) => {
         const data = feature.get('data');
         if (data) {
@@ -562,41 +619,41 @@ export class MapComponent implements AfterViewInit, OnInit {
         }
       });
 
-      console.log('Box selection completed. Selected indices:', newSelectedIndices, 'CIDs:', newSelectedCids);
+      console.log(`Box selection: ${newSelectedCids.length} CIDs selected`);
       
       // Persist visual selection box
       if (this.selectionSource) {
-         this.selectionSource.clear(); // Clear any previous box
+         this.selectionSource.clear();
          const selectionFeature = new Feature({
             geometry: geometry
          });
          this.selectionSource.addFeature(selectionFeature);
       }
 
-      // Store selected indices and refresh map to show highlighting
+      // ✅ Store selected indices for styling
       this.selectedIndices = new Set(newSelectedIndices);
-      this.vectorLayer.changed(); // Trigger re-render to show selection styles
+      this.vectorLayer.changed();
 
-      // Emit selection event to grid components
+      // ✅ Broadcast ONLY new box selection (grid will merge with its source)
       const selectionData: IZMapSelectionData = {
         toolType: IZToolType.BoxSelection,
         data: {
           selectedIndices: newSelectedIndices,
-          selectedCids: newSelectedCids,
+          selectedCids: newSelectedCids, // Just the box selection
           allIndices: this.points.map((p) => p.index),
         },
       };
 
       this.navBar.mapSelectionSubject.next(selectionData);
 
-      // ✅ Map -> Popout Sync: Broadcast selection
+      // Map -> Popout Sync
       if (this.popoutService && this.popoutService.isGridPoppedOut()) {
         this.popoutService.broadcastEvent('SYNC_SELECTION', {
            cids: newSelectedCids
         });
       }
 
-      // ✅ URL Sync: Save selection and update URL matrix param
+      // ✅ URL Sync: Save box selection
       if (newSelectedCids.length > 0) {
         const key = this.urlStateService.saveSelection(newSelectedCids);
         this.navBar.updateMapSelectionParam(key);
@@ -611,11 +668,12 @@ export class MapComponent implements AfterViewInit, OnInit {
     this.isBoxSelectionEnabled = true;
     this.map.addInteraction(this.dragBoxInteraction);
     
-    // Disable other interactions while box selection is active
-    this.map.removeInteraction(this.selectInteraction);
+    // ✅ FIX: Don't remove selectInteraction - preserves existing highlights
+    // Both dragBox and select can coexist without interference
+    // Only remove modifyInteraction to prevent accidental point dragging
     this.map.removeInteraction(this.modifyInteraction);
     
-    console.log('DragBox interaction enabled');
+    console.log('DragBox interaction enabled (selectInteraction preserved)');
   }
 
   disableDragBox(): void {
@@ -624,8 +682,7 @@ export class MapComponent implements AfterViewInit, OnInit {
       this.map.removeInteraction(this.dragBoxInteraction);
     }
     
-    // Re-enable other interactions
-    this.map.addInteraction(this.selectInteraction);
+    // Re-enable modify interaction (selectInteraction was never removed)
     this.map.addInteraction(this.modifyInteraction);
     
     console.log('DragBox interaction disabled');

@@ -50,7 +50,15 @@ import { HttpService } from '../../shared/services/http.service';
 export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   gridData: IZDailyCustomerDataType[] = [];
   selectedRowIndices: Set<number> = new Set(); // Track selected data indices for highlighting
-  selectedCids: Set<string> = new Set(); // Track selected CIDs for robust highlighting
+  
+  // ✅ Source-based selection tracking
+  private gridSourceCids: Set<string> = new Set(); // CIDs selected from grid only
+  private mapSourceCids: Set<string> = new Set();  // CIDs selected from map/box selection only
+  
+  // Merged selection getter (combines both sources)
+  get selectedCids(): Set<string> {
+    return new Set([...this.gridSourceCids, ...this.mapSourceCids]);
+  }
   // Grid toolbar buttons
   mainGridBtnList: IZWijmoGridBtn[] = gridBtnList;
   popoutGridBtnList: IZWijmoGridBtn[] = popoutGridBtnList;
@@ -117,6 +125,8 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
   private _flexGrid!: FlexGrid;
   private handlersRegistered = false;
   private isProgrammaticSelection = false;
+  private isLocalUrlUpdate = false; // Track if we just updated URL locally (prevent restoration loop)
+  private isLoadingData = false; // Track when data is being loaded (prevent auto-selection URL update)
 
   @ViewChild('flexGrid') set flexGrid(grid: FlexGrid) {
     if (grid && grid !== this._flexGrid) {
@@ -285,6 +295,9 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
         // ✅ Initialize dayOfWeek from service FIRST (prevents undefined in early navigation)
         this.dayOfWeek = this.navService.selectedDayOfWeek;
         this.routes = this.navService.selectedRoutes;
+        // Track previous params to detect matrix-only changes
+        let previousRoutes: string = '';
+        let previousDayOfWeek: string = '';
         
         this.route.params
           .pipe(
@@ -293,12 +306,40 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             takeUntil(this.destroy$),
           )
           .subscribe((params) => {
-            this.routes = params['routes'] ? params['routes'].split(',') : [];
-            this.dayOfWeek = params['dayOfWeek'];
+            const currentRoutes = params['routes'] || '';
+            const currentDayOfWeek = params['dayOfWeek'] || '';
+            
+            // Check if only matrix params changed (not route/dayOfWeek)
+            const onlyMatrixParamChanged = 
+              currentRoutes === previousRoutes && 
+              currentDayOfWeek === previousDayOfWeek &&
+              (previousRoutes !== '' || previousDayOfWeek !== ''); // Not first load
+            
+            console.log('Planner: Route params changed:', {
+              currentRoutes,
+              currentDayOfWeek,
+              previousRoutes, 
+              previousDayOfWeek,
+              onlyMatrixParamChanged,
+              gridSelection: params['gridSelection']
+            });
+            
+            // Update tracking
+            previousRoutes = currentRoutes;
+            previousDayOfWeek = currentDayOfWeek;
+            
+            this.routes = currentRoutes ? currentRoutes.split(',') : [];
+            this.dayOfWeek = currentDayOfWeek;
             
             // Update service state FIRST so getLoadedData uses correct routes
             this.navService.selectedRoutes = this.routes;
             this.navService.selectedDayOfWeek = this.dayOfWeek;
+            
+            // ✅ Skip data reload if ONLY matrix params changed (e.g. gridSelection)
+            if (onlyMatrixParamChanged) {
+              console.log('Planner: Only matrix params changed - skipping data reload');
+              return; // Don't reload data, don't update map
+            }
             
             // ✅ ONLY reload data if routes exist AND this is NOT a page refresh
             // Skip auto-load on page refresh (user wants clean slate)
@@ -312,7 +353,7 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
             
             this.updateGridDataAndMap();
             console.log(
-              'Planner: Route params changed: Navigating to Map Grid state',
+              'Planner: Navigating to Map Grid state',
               params,
             );
           });
@@ -324,11 +365,27 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
              const gridKey = params['gridSelection'];
              const routesParam = params['routes'];
              
+             console.log('🔄 Grid params changed:', { gridKey, routesParam, gridDataLength: this.gridData.length });
+             
+             // ✅ GUARD: Skip restoration if we just updated URL locally
+             // This prevents the loop: user selects → URL updates → restoration fires → blocks next selection
+             if (this.isLocalUrlUpdate) {
+                console.log('Planner: Skipping restoration (local URL update)');
+                this.isLocalUrlUpdate = false; // Reset flag
+                return;
+             }
+             
+             // ✅ GUARD: Skip if gridKey is empty or whitespace (fresh data load)
+             if (!gridKey || gridKey.trim() === '') {
+                console.log('Planner: Skipping restoration (empty gridSelection)');
+                return;
+             }
+             
              // Only restore selection if:
-             // 1. We have a key
+             // 1. We have a key (non-empty)
              // 2. We have routes loaded (not initial empty state)
              // 3. Grid data exists
-             if (gridKey && routesParam && this.gridData.length > 0) {
+             if (routesParam && this.gridData.length > 0) {
                 console.log('Planner: Restoring grid selection from key:', gridKey);
                 const selectedCids = this.urlStateService.getSelection(gridKey);
                 
@@ -339,7 +396,9 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
                    
                    if (validCids.length > 0) {
                       console.log(`Planner: Restoring ${validCids.length} valid selections out of ${selectedCids.length}`);
-                      this.selectedCids = new Set(validCids);
+                      // ✅ Restore to grid source (URL selections are from grid)
+                      this.gridSourceCids = new Set(validCids);
+                      this.mapSourceCids.clear(); // Clear map source on URL restore
                       
                       // Apply selection if grid is ready
                       if (this.flexGrid) {
@@ -397,34 +456,78 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       
       // ✅ Grid -> Map Sync: Listen to user selecting rows
       this.flexGrid.selectionChanged.addHandler((s: FlexGrid, e: any) => {
+        console.log('🔵 SELECTION HANDLER FIRED');
+        console.log('  isProgrammaticSelection:', this.isProgrammaticSelection);
+        console.log('  isLocalUrlUpdate:', this.isLocalUrlUpdate);
+        console.log('  isLoadingData:', this.isLoadingData);
+        
+        // Guard: Ignore during data load (prevents auto-selection URL update)
+        if (this.isLoadingData) {
+          console.log('  ❌ BLOCKED by isLoadingData flag (data is loading)');
+          return;
+        }
+        
         // Guard: Ignore programmatic selections (e.g. from Map or Sorting)
-        if (this.isProgrammaticSelection) return;
+        if (this.isProgrammaticSelection) {
+          console.log('  ❌ BLOCKED by isProgrammaticSelection flag');
+          return;
+        }
+        
+        console.log('  ✅ PASSED guard - processing user selection...');
         
         // 1. Get selected items
         const selectedItems = s.selectedItems as IZDailyCustomerDataType[];
+        console.log('  Selected items count:', selectedItems?.length);
         
         // 2. Extract CIDs
         const selectedCids = selectedItems
           .filter(item => item && item.cid)
           .map(item => item.cid as string);
           
-        console.log(`Planner: Grid selection changed (User Action). CIDs: ${selectedCids.length}`);
+        console.log(`  Extracted CIDs: ${selectedCids.length}`, selectedCids);
         
-        // 3. Broadcast to Map (via NavigationService for Local Map)
-        this.navService.gridSelectionSubject.next(selectedCids);
+        // 3. Update grid source (clears previous grid selections, preserves map selections)
+        this.gridSourceCids = new Set(selectedCids);
+        console.log('  Updated gridSourceCids:', Array.from(this.gridSourceCids));
+        console.log('  Current mapSourceCids:', Array.from(this.mapSourceCids));
+        console.log('  MERGED selectedCids:', Array.from(this.selectedCids));
         
-        // 4. Update local state (so highlights stick)
-        this.selectedCids = new Set(selectedCids);
+        // 4. Broadcast MERGED selection to Map (grid + map sources)
+        const mergedCids = Array.from(this.selectedCids);
+        console.log('  🔔 Broadcasting to Map:', mergedCids.length, 'CIDs');
+        this.navService.gridSelectionSubject.next(mergedCids);
         
-        // 5. Broadcast to Popout/Parent (if needed)
+        // 5. ✅ URL Sync: Save grid selection state and update URL
+        // ONLY update URL if there are selected items (don't set gridSelection= with empty value)
+        if (selectedCids.length > 0) {
+          console.log('  ⏰ Scheduling URL update in 100ms...');
+          setTimeout(() => {
+            console.log('  🌐 URL update callback fired');
+            // Set flag BEFORE updating URL to prevent restoration loop
+            this.isLocalUrlUpdate = true;
+            console.log('    Set isLocalUrlUpdate = true');
+            
+            const key = this.urlStateService.saveSelection(selectedCids);
+            console.log('    Saved selection with key:', key);
+            console.log('    Calling updateGridSelectionParam...');
+            this.navService.updateGridSelectionParam(key);
+          }, 100); // Small delay to let map process the selection
+        } else {
+          console.log('  ⏹️ Empty selection - skipping URL update');
+        }
+        
+        // 6. Broadcast to Popout/Parent (if needed)
         // If we are in Popout, tell Main Window
         if (this.isPopoutMode) {
+          console.log('  📡 Broadcasting to popout window');
            this.popoutService.sendMessage({
              type: 'EVENT',
              action: 'SYNC_SELECTION', // We reuse this action
              payload: { cids: selectedCids } // Array payload
            });
         }
+        
+        console.log('🔵 SELECTION HANDLER COMPLETE');
       });
       
       // Set up formatItem handler for selection highlighting
@@ -502,43 +605,8 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       });
     }
     
-    // Handle user selection changes (Grid -> Map/Logic sync)
-    grid.selectionChanged.addHandler((s: FlexGrid, e: any) => {
-      if (this.isProgrammaticSelection) return;
-
-      const selectedItems = s.selectedItems;
-      this.selectedCids.clear();
-      this.selectedRowIndices.clear();
-
-      selectedItems.forEach((item: any) => {
-        if (item.cid) this.selectedCids.add(item.cid);
-        if (item.index !== undefined) this.selectedRowIndices.add(item.index);
-      });
-
-      // User request: Do NOT move to top when selecting from grid logic
-      // this.applySelectionSort(); 
-
-      console.log(`Planner: Grid selection changed (onGridInitialized). CIDs: ${this.selectedCids.size}`);
-      
-      // ✅ BROADCAST to Map
-      this.navService.gridSelectionSubject.next(Array.from(this.selectedCids));
-
-      // If we are in Popout, tell Main Window
-      if (this.isPopoutMode) {
-          this.popoutService.sendMessage({
-            type: 'EVENT',
-            action: 'SYNC_SELECTION',
-            payload: { cids: Array.from(this.selectedCids) }
-          });
-      }
-
-      // ✅ URL Sync: Save selection and update URL matrix param
-      //    GUARD: Only update URL if we have a valid dayOfWeek to prevent malformed URLs
-      if (!this.isPopoutMode && this.dayOfWeek) {
-         const key = this.urlStateService.saveSelection(Array.from(this.selectedCids));
-         this.navService.updateGridSelectionParam(key);
-      }
-    });
+    // ✅ Selection handler already registered in ngAfterViewInit (line 409)
+    // No need to register it again here to avoid duplicate broadcasts
 
     this.handlersRegistered = true;
     console.log('Planner: Grid handlers registered via initialized event');
@@ -634,13 +702,29 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       this.gridData = [...mapPoints];
       this.popoutService.popoutGridData = this.gridData;
 
-      // Use setTimeout to ensure grid is updated before we clear selection
+      // Set loading flag to block handler during data load
+      this.isLoadingData = true;
+      
+      // Use longer setTimeout to ensure grid is FULLY RENDERED before clearing selection
       // This prevents the default behavior of selecting the first row
       setTimeout(() => {
-        if (this.flexGrid) {
-           this.flexGrid.select(new CellRange(-1, -1));
+        if (this.flexGrid && this.flexGrid.select) {
+          console.log('Clearing initial selection after data load');
+          this.isProgrammaticSelection = true;
+          this.flexGrid.select(new CellRange(-1, -1));
+          
+          // Reset both flags after clear completes
+          setTimeout(() => {
+            this.isProgrammaticSelection = false;
+            this.isLoadingData = false; // Data loading complete
+            console.log('Selection cleared, handlers now active');
+          }, 50);
+        } else {
+          // Grid not ready, just reset flag
+          console.warn('FlexGrid not ready for selection clear');
+          this.isLoadingData = false;
         }
-      });
+      }, 200); // Longer delay to ensure grid fully renders
       console.log('Grid data initialized with', this.gridData.length, 'rows');
     } else {
       // Update existing data (for coordinate updates, etc.)
@@ -1007,7 +1091,8 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       
       
       // Update our internal tracking sets first
-      this.selectedCids = new Set(cidList);
+      // ✅ This is called from map selection, so update map source only
+      this.mapSourceCids = new Set(cidList);
       this.selectedRowIndices.clear();
 
       // ✅ Sort to Top if requested
@@ -1429,9 +1514,10 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     console.log('Planner: Handling map selection', { toolType, selectedIndices, selectedCidsCount: selectedCids?.length, gridDataLength: this.gridData?.length });
 
     if (toolType === IZToolType.Eraser || (selectedIndices.length === 0 && (!selectedCids || selectedCids.length === 0))) {
-      // Clear selection by emptying the Set
+      // ✅ Clear BOTH sources (eraser clears everything)
+      this.gridSourceCids.clear();
+      this.mapSourceCids.clear();
       this.selectedRowIndices.clear();
-      if (this.selectedCids) this.selectedCids.clear();
       
       // Explicitly clear native Grid selection
       this.isProgrammaticSelection = true;
@@ -1450,40 +1536,38 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
       }
 
       this.flexGrid.refresh(true);
-      console.log('Planner: Selection cleared and sort reset');
+      console.log('Planner: All selections cleared');
       return;
     }
 
-    // Update the selectedRowIndices Set and selectedCids Set
-    this.selectedRowIndices = new Set(selectedIndices);
-    if (selectedCids) {
-      this.selectedCids = new Set(selectedCids);
-    } else {
-      if (this.selectedCids) this.selectedCids.clear();
+    // ✅ Replace map source (preserve grid selections)
+    this.mapSourceCids.clear();
+    if (selectedCids && selectedCids.length > 0) {
+      selectedCids.forEach(cid => this.mapSourceCids.add(cid));
     }
+
+    console.log(`Planner: Map selection. ${this.gridSourceCids.size} from grid + ${this.mapSourceCids.size} from map = ${this.selectedCids.size} total`);
+
+    // Update row indices and visual state
+    this.updateSelectedIndices();
+
+    // ✅ CRITICAL: Broadcast MERGED selection back to map
+    // Map will receive and highlight all CIDs from both sources
+    console.log(`Planner: Broadcasting ${this.selectedCids.size} merged CIDs to map`);
+    this.navService.gridSelectionSubject.next(Array.from(this.selectedCids));
 
     // Sync to Native Grid Selection
     this.isProgrammaticSelection = true;
     try {
-      // Clear current native selection first? 
-      // We want to select rows that match.
-      // In MultiRange/ListBox, we can't easily "set" selection without iterating?
-      // Actually, setting rows[i].isSelected is the way.
       this.flexGrid.rows.forEach(row => {
          const item = row.dataItem as any;
-         if (item) {
-           let shouldSelect = false;
-           if (this.selectedCids.size > 0 && item.cid) {
-              shouldSelect = this.selectedCids.has(item.cid);
-           } else {
-              shouldSelect = this.selectedRowIndices.has(item.index);
-           }
-           row.isSelected = shouldSelect;
+         if (item && item.cid) {
+           row.isSelected = this.selectedCids.has(item.cid); // Uses merged getter
          }
       });
       
       // Apply sorting and highlighting logic
-      // Note: applySelectionSort() will update selectedRowIndices after sort
+     // Note: applySelectionSort() will update selectedRowIndices after sort
       this.applySelectionSort();
       
     } finally {
@@ -1497,7 +1581,29 @@ export class PlannerComponent implements OnDestroy, OnInit, AfterViewInit {
     // Scroll to top
     this.flexGrid.scrollIntoView(0, 0);
 
-    console.log(`Planner: Selected ${this.selectedRowIndices.size} rows, moved to top`);
+    console.log(`Planner: Total ${this.selectedCids.size} rows highlighted`);
+  }
+
+  /**
+   * Updates selectedRowIndices based on merged selectedCids
+   * Ensures visual highlighting matches logical selection state
+   */
+  private updateSelectedIndices(): void {
+    this.selectedRowIndices.clear();
+    
+    if (!this.gridData || this.gridData.length === 0) return;
+    
+    // Build index set from merged CIDs
+    this.gridData.forEach(item => {
+      if (item.cid && this.selectedCids.has(item.cid)) {
+        this.selectedRowIndices.add(item.index);
+      }
+    });
+    
+    // Trigger visual refresh
+    if (this.flexGrid) {
+      this.flexGrid.invalidate();
+    }
   }
 
   ngOnDestroy() {
