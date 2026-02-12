@@ -1,32 +1,37 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { Injectable, signal, computed } from '@angular/core';
 import { PopupState, PopupType } from '../interfaces/interfaces';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PopupService {
-  private popupStateSubject = new BehaviorSubject<PopupState>({ 
-    type: null, 
-    isOpen: false 
-  });
-  popupState$: Observable<PopupState> = this.popupStateSubject.asObservable();
-  
-  constructor() {}
-  
+  private initialState: PopupState = {
+    type: null,
+    data: null
+  };
+
+  // 1. Create a Writable Signal (Private)
+  private _popupState = signal<PopupState>(this.initialState);
+
+  // 2. Expose a Read-Only Signal (Public)
+  readonly popupState = this._popupState.asReadonly();
+
+  constructor() { }
+
+  // Generic Open Method
   openPopup(type: PopupType, data?: any): void {
-    this.popupStateSubject.next({ type, data, isOpen: true });
+    this._popupState.set({ type, data });
   }
-  
-  closePopup(): void {
-    this.popupStateSubject.next({ type: null, isOpen: false });
-  }
-  
-  // Legacy methods for backward compatibility
+
+  // Generic Open Method (Legacy alias)
   open(type: PopupType, data?: any): void {
     this.openPopup(type, data);
   }
-  
+
+  closePopup(): void {
+    this._popupState.set(this.initialState);
+  }
+
   close(type: PopupType): void {
     this.closePopup();
   }

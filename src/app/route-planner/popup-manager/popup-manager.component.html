@@ -1,22 +1,15 @@
-<ng-container *ngIf="popupState && popupState.isOpen">
-  <!-- Statistics Popup -->
-  <app-statistics
-    *ngIf="popupState.type === 'statistics'"
-    [data]="popupState.data"
-    (close)="closePopup()"
-  ></app-statistics>
+<!-- Statistics Popup -->
+<app-statistics *ngIf="statisticsData" [data]="statisticsData" (close)="closePopup()">
+</app-statistics>
 
-  <!-- Geocode Popup -->
-  <app-geocode
-    *ngIf="popupState.type === 'geocode'"
-    [data]="popupState.data"
-    (close)="closePopup()"
-  ></app-geocode>
+<!-- Geocode Popup -->
+<app-geocode *ngIf="geocodeData" [data]="geocodeData" (close)="closePopup()">
+</app-geocode>
 
-  <!-- Edit All Popup -->
-  <app-edit-all
-    *ngIf="$any(popupState.type) === 'EditAll'"
-    [visible]="true"
-    (close)="closePopup()"
-  ></app-edit-all>
-</ng-container>
+<!-- Edit All Popup -->
+<app-edit-all *ngIf="editAllVisible" [visible]="true" (close)="closePopup()">
+</app-edit-all>
+
+<!-- Confirm Line Sequence Popup -->
+<app-confirm-line-sequence *ngIf="confirmLineSequenceBool" [confirmLineSequenceBool]="confirmLineSequenceBool">
+</app-confirm-line-sequence>

@@ -29,11 +29,10 @@ export interface IZBaseDataType {
 export interface IZDailyCustomerDataType extends customer.ICustomer {
   index: number;
 }
-export type PopupType = 'statistics' | 'geocode' | 'fieldCalculator' | null;
+export type PopupType = 'statistics' | 'geocode' | 'fieldCalculator' | 'LineSeq' | 'EditAll' | null;
 export interface PopupState {
   type: PopupType;
   data?: any; // Data to pass to the popup component
-  isOpen?: boolean; // Indicates if popup is open
 }
 
 // Rectangle Selection Types
@@ -41,6 +40,7 @@ export enum IZToolType {
   BoxSelection = 'boxSelection',
   PolygonSelection = 'polygonSelection',
   Eraser = 'eraser',
+  LineSequence = 'lineSequence',
 }
 
 export interface IZMapSelectionData {

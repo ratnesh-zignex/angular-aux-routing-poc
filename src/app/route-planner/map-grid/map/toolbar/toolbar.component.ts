@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Output } from '@angular/core';
 import { IZToolType } from '../../../shared/interfaces/interfaces';
+import { PopupService } from '../../../shared/services/popup.service';
 
 interface ToolbarButton {
   name: IZToolType;
@@ -17,6 +18,7 @@ interface ToolbarButton {
   styleUrl: './toolbar.component.scss',
 })
 export class MapToolbarComponent {
+  private popupService = inject(PopupService);
   @Output() toolActivated = new EventEmitter<IZToolType>();
   @Output() toolDeactivated = new EventEmitter<IZToolType>();
 
@@ -35,6 +37,12 @@ export class MapToolbarComponent {
       tooltip: 'Clear Selection',
       isActive: false,
     },
+    {
+      name: IZToolType.LineSequence,
+      icon: '☠',
+      tooltip: 'Edit Seq #',
+      isActive: false,
+    },
   ];
 
   onButtonClick(button: ToolbarButton): void {
@@ -51,6 +59,23 @@ export class MapToolbarComponent {
       
       // 2. Fire Eraser action
       this.toolActivated.emit(button.name);
+      return;
+    }
+
+    if (button.name === IZToolType.LineSequence) {
+      if (this.activeTool) {
+        const prevButton = this.buttons.find((b) => b.name === this.activeTool);
+        if (prevButton) {
+          prevButton.isActive = false;
+          this.toolDeactivated.emit(prevButton.name);
+        }
+        this.activeTool = null;
+      }
+      this.toolActivated.emit(button.name);
+      const data = {
+        data: 'data', mapID: "map", toolType: "lineSequence"
+      };
+      this.popupService.openPopup('LineSeq', data);
       return;
     }
 
